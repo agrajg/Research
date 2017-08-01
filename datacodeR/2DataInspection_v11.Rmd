@@ -1,0 +1,105 @@
+---
+title: "Data"
+output:
+  html_notebook:
+    theme: flatly
+  pdf_document: default
+---
+
+```{r Packages, message=FALSE, warning=FALSE}
+rm(list = ls())
+# #########################################################################################################
+# Set working directory
+# wdir <- "U:/datacodeR/"
+wdir <- "Y:/agrajg/Airbnb_data/AirbnbDataCodeMay2017/datacodeR"
+# #########################################################################################################
+# # Packages
+# #########################################################################################################
+# update.packages()
+# install.packages("tidyr", lib =  paste(wdir,"library", sep = "/"))
+# install.packages("dplyr", lib =  paste(wdir,"library", sep = "/"))
+# install.packages("ggplot2", lib =  paste(wdir,"library", sep = "/"))
+# install.packages("magrittr", lib =  paste(wdir,"library", sep = "/"))
+# #########################################################################################################
+library("magrittr", lib.loc=paste(wdir,"library", sep = "/"))
+library("dplyr", lib.loc=paste(wdir,"library", sep = "/"))
+library("tidyr", lib.loc=paste(wdir,"library", sep = "/"))
+library("ggplot2", lib.loc=paste(wdir,"library", sep = "/"))
+# #########################################################################################################
+
+```
+
+```{r Load data}
+# #########################################################################################################
+# #########################################################################################################
+# # Load Sample Data
+# setwd(wdir)
+# load("airdna_market_data_sample50.RData")
+# load("mcox_listing_data_sample50.RData")
+# load("airdna_listing_data_sample50.RData")
+# #########################################################################################################
+# #########################################################################################################
+# Load Actual Data
+setwd(wdir)
+load("airdna_market_data.RData")
+load("mcox_listing_data.RData")
+load("airdna_listing_data.RData")
+# #########################################################################################################
+# #########################################################################################################
+```
+
+
+```{r SPARK}
+# #########################################################################################################
+# # SPARK START, SPARK DATA LOAD
+# # This block is to load data on to the spark memory
+# # To use spark for data analysis just uncomment this section
+# #########################################################################################################
+# # install.packages("sparklyr")
+# library(sparklyr)
+# spark_install("2.0.2")
+# sc <- spark_connect(master = "local", version = "2.0.2", hadoop_version = "2.7")
+# #########################################################################################################
+# # Copying data on to spark
+# market.data <- copy_to(sc, market.data, "market_data" , overwrite = TRUE)
+# airdna.listing.data <- copy_to(sc, airdna.listing.data, "airdna_listing_data" , overwrite = TRUE)
+# mcox.listing.data <- copy_to(sc, mcox.listing.data, "mcox_listing_data" , overwrite = TRUE)
+# #########################################################################################################
+# #########################################################################################################
+```
+
+
+```{r}
+# str(market.data)
+# str(airdna.listing.data)
+# str(mcox.listing.data)
+```
+
+### Data description
+
+```{r}
+hosts.data <- airdna.listing.data %>%
+  select(propertyid, hostid)
+market.data <- market.data %>%
+  left_join(.,hosts.data)
+summary1 <- market.data %>%
+  summarise(num.property =  n_distinct(propertyid), time.horizon = n_distinct(date),num.host = n_distinct(hostid))
+rm(hosts.data)
+```
+
+The data has `r summary1$num.property` properties that have been traced during a `r summary1$time.horizon` time period. These properties have been managed by `r summary1$num.host` hosts.  
+
+
+* How old are the properties in the data?
+  - 
+```{r}
+createdate.data <- airdna.listing.data %>%
+  select(propertyid, createddate)
+market.data <- market.data %>%
+  left_join(.,createdate.data) %>%
+  group_by(propertyid, createddate) %>%
+  summarise(mean.price = mean(price))
+
+```
+
+

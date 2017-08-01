@@ -1,0 +1,130 @@
+---
+title: "Airbnb Model"
+output:
+  html_notebook: default
+  html_document: default
+  pdf_document: default
+---
+```{r Setup}
+rm(list = ls())
+```
+
+In this document, I develop amd simulate a Model of Airbnb market. The Airbnb market is composed of 2 sides - Guests (denoted by $g$) and Hosts(denoted by $h$). The market is organized every period $t$ and the transactions takes place over short term rentals every period. Let $\mathcal{G_t}$ and $\mathcal{H_t}$ be set of host and guest in the market. I intend to start with a simple model and then add structure to it. 
+
+$$\mathcal{G_t} = {1,2,...,N^{G_t}}$$
+$$\mathcal{H_t} = {1,2,...,N^{H_t}}$$
+
+Let's denote Indirect Utility of a guest by $U_{g}$ and Expected Value of Host's property by $V_{h}$. Guest's Indirect Utility of guest $g$ from accommodation provided by host $h$ is given by $U_{gh}$. Then $U_{g0}$ is his utility from outside accommodation i.e. from not being matched to any host. Similarly, Host's expected value from her property is given by $V_{gh}$ if guest $g$ stays at host $h$. In case a match in not found the expected utility if given by $V_{0h}$
+
+Let $$U^*_{gh} = U_{gh} - U_{g0}$$ and $$V^*_{gh} = V_{gh} - V_{0h}$$
+
+Matching variable is represented by $y_{gh}$ such that, 
+
+\begin{equation}
+ y_{gh} =
+  \begin{cases}
+    1 & \text{if guest g is matched to host h} ,\\
+    0 & \text{otherwise}.
+  \end{cases}
+\end{equation}
+
+
+
+### One host, one guest, one time period, U V random normal no structure, no search frictions
+
+$$\mathcal{G} = \{1\}$$
+$$\mathcal{H} = \{1\}$$
+
+#### Necessary and sufficient condition for matching
+
+A host $h=1$ is matched to a guest $g=1$ , $y_{11}=1$ iff 
+
+1. For guest 1: $U_{11}\geq U_{10}$ or $U^*_{11} \geq 0$
+2. For host 1: $V_{11}\geq V_{01}$ or $V^*_{11} \geq 0$
+
+Let $U^*_{11} \sim N(0,1)$ and $V^*_{11} \sim N(0,1)$ 
+
+```{r}
+rm(list = ls())
+U.star.11 <- rnorm(1, mean = 0,sd = 1)
+V.star.11 <- rnorm(1, mean = 0,sd = 1)
+y.11 <- ifelse(U.star.11 >=0 & V.star.11 >=0,1,0)
+```
+
+### One host, Two guest, one time period, U V random normal no structure, no search frictions
+
+$$\mathcal{G} = \{1,2\}$$
+
+$$ \mathcal{H} = \{ 1 \}$$ 
+
+#### Necessary and sufficient condition for matching
+
+A host $h=1$ is matched to a guest $g \in \mathcal{G}$ , $y_{g1}=1$ iff 
+
+1. For guest $g$, $U_{g1}\geq U_{g0}$ or $U^*_{g1} \geq 0$
+2. For host 1, $V_{g1}\geq V_{g1}$ or $V^*_{g1} \geq 0$
+3. For host 1, $V_{g1} \geq V_{g'1}$ or $V_{g1} \geq V_{g'1}$ and if $V_{g1} < V_{g'1}$ then $U_{g'1}<0$  
+
+I draw utility of the guests from the same distribution as before such that $U^*_{11} \sim N(0,1)$ and $U^*_{21} \sim N(0,1)$. Similarly, the host will some expected value of hosting guest 1 as comapared to guest 2. The host will have different valuation for each guest. $V^*_{11} \sim N(0,1)$ and $V^*_{12} \sim N(0,1)$ 
+
+ 
+ 
+```{r}
+rm(list = ls())
+U.star.11 <- rnorm(1, mean = 0,sd = 1)
+U.star.21 <- rnorm(1, mean = 0,sd = 1)
+V.star.11 <- rnorm(1, mean = 0,sd = 1)
+V.star.21 <- rnorm(1, mean = 0,sd = 1)
+y.11 <- ifelse(U.star.11 >= 0 & V.star.11 >=0 & (V.star.11 >= V.star.21 | (V.star.11 < V.star.21 & U.star.21 < 0)),1,0)
+y.21 <- ifelse(U.star.21 >= 0 & V.star.21 >=0 & (V.star.21 >= V.star.11 | (V.star.21 < V.star.11 & U.star.11 < 0)),1,0)
+```
+
+
+### Two host, One guest, one time period, U V random normal no structure, no search frictions
+
+$$\mathcal{G} = \{1\}$$
+
+$$\mathcal{H} = \{1,2\}$$
+
+#### Necessary and sufficient condition for matching
+
+A host $h \in \mathcal{H}$ is matched to a guest $h=1$ , $y_{1h}=1$ iff 
+
+1. For guest 1, $U_{1h}\geq U_{1h}$ or $U^*_{1h} \geq 0$
+2. For host $h$, $V_{1h} \geq V_{0h}$ or $V^*_{1h}\geq 0$
+3. For guest 1, $U_{1h} \geq U_{1h'}$ or $U^*_{1h} \geq U^*_{1h'}$ and if $U^*_{1h} < U^*_{1h'}$ then $V^*_{1h'} < 0$ 
+
+Let $U^*_{11} \sim N(0,1)$ $U^*_{12} \sim N(0,1)$ $V^*_{11} \sim N(0,1)$ and $V^*_{12} \sim N(0,1)$
+
+```{r}
+rm(list = ls())
+U.star.11 <- rnorm(1, mean = 0,sd = 1)
+U.star.12 <- rnorm(1, mean = 0,sd = 1)
+V.star.11 <- rnorm(1, mean = 0,sd = 1)
+V.star.12 <- rnorm(1, mean = 0,sd = 1)
+y.11 <- ifelse(U.star.11 >= 0 & V.star.11 >=0 & (U.star.11 >= U.star.12 | ((U.star.11 < U.star.12) & V.star.12 < 0)),1,0)
+y.12 <- ifelse(U.star.12 >= 0 & V.star.12 >=0 & (U.star.12 >= U.star.11 | ((U.star.12 < U.star.11) & V.star.11 < 0)),1,0)
+```
+
+### Two host, Two guest, one time period, U V random normal no structure, no search frictions
+
+$$\mathcal{G} = \{1,2\}$$
+$$\mathcal{H} = \{1,2\}$$
+A guest $g \in \mathcal{G}$ is matched to host $h \in \mathcal{H}$, i.e. $y_{gh} = 1$ iff
+
+1. For guest $g$, $U^*_{gh} \geq 0$
+2. For host $h$, $V^*_{gh} \geq 0$
+3. For guest $g$, $U^*_{gh} \geq U^*_{gh'}$ and if $U^*_{gh} < U^*_{gh'}$ then $V^*_{gh'} < 0$ 
+4. For host $h$, $V^*_{gh} \geq V^*_{g'h}$ and if $V^*_{gh} < V^*_{g'h}$ then $U^*_{g'h}<0$
+
+Let $U^*_{11} \sim N(0,1)$, $U^*_{12} \sim N(0,1)$, $U^*_{21} \sim N(0,1)$, $U^*_{22} \sim N(0,1)$ and 
+$V^*_{11} \sim N(0,1)$, $V^*_{12} \sim N(0,1)$, $V^*_{21} \sim N(0,1)$, $V^*_{22} \sim N(0,1)$
+
+### 3 host 3 guest, one time period, U V randon normal
+
+$$\mathcal{G} = \{1,2,3\}$$
+$$\mathcal{H} = \{1,2,3\}$$
+
+
+
+
