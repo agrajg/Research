@@ -1,25 +1,51 @@
+*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+********************************** BEGIN ***************************************
+****************************** mainMCOX.do *************************************
+*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 clear all
 set more off 
-cd "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Code\Stata\"
 ********************************************************************************
-timer clear 1
-timer on 1
-do "csvtodta_MCOX_reviews_data_april2017.do"
-timer off 1
-timer on 1
-do "cleaning_MCOX_property_data_may2017_v12.do"
-timer off 1
-timer on 1
-do "cleaning_MCOX_property_data_may2017_v22.do"
-timer off 1
+************************* MCOX Reviews data ************************************
 ********************************************************************************
-save "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\MCOX_listings_dta_data\MCOX_property_data_clean_final.dta", replace
-export delimited using "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\datacodeR\MCOX_property_data_clean_final.csv", replace
+*CSV TO DTA AND APPEND
+
+*===============================================================================
+do "Y:\agrajg\Research\Code\Stata\csvtodta_append_MCOX_reviews_data.do"
+*===============================================================================
+
 ********************************************************************************
-*sampling 50 properties
-do "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Code\Stata\sample50properties_v11.do"
-save "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\AIRDNA_market_dta_data\MCOX_property_data_clean_final_sample50.dta", replace 
-export delimited using "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\datacodeR\MCOX_property_data_clean_final_sample50.csv", replace
+************************* MCOX Property data ***********************************
+********************************************************************************
+*CSV TO DTA AND APPEND
+
+*===============================================================================
+do "Y:\agrajg\Research\Code\Stata\csvtodta_append_MCOX_property_data.do"
+*===============================================================================
+
 ********************************************************************************
 
-timer list 1
+*===============================================================================
+do "Y:\agrajg\Research\Code\Stata\cleaning_MCOX_property_data.do"
+*===============================================================================
+
+********************************************************************************
+
+*===============================================================================
+save "Y:\agrajg\Research\Data\FinalData\MCOX_property_data_clean_final.dta", replace
+export delimited using "Y:\agrajg\Research\Data\FinalData\MCOX_property_data_clean_final.csv", replace
+*===============================================================================
+********************************************************************************
+*sampling 50 properties
+
+*===============================================================================
+do "Y:\agrajg\Research\Code\Stata\sample50properties_v11.do"
+save "Y:\agrajg\Research\Data\FinalData\MCOX_property_data_clean_final_sample50.dta", replace 
+export delimited using "Y:\agrajg\Research\Data\FinalData\MCOX_property_data_clean_final_sample50.csv", replace
+*===============================================================================
+
+********************************************************************************
+
+*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+**********************************  END  ***************************************
+******************************** mainMCOX.do ***********************************
+*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX

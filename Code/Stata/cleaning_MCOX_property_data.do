@@ -1,14 +1,29 @@
+*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+********************************** BEGIN ***************************************
+********************** cleaning_MCOX_property_data.do **************************
+*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 clear all 
 set more off 
-use "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\MCOX_listings_dta_data\allappended_listings.dta", clear
+
+*===============================================================================
+use "Y:\agrajg\Research\Data\RawMCOX_listings_dta_data\allappended_listings.dta", clear
+*===============================================================================
 
 destring id , generate(propertyid) force
 order id propertyid
 format %30s id
-*preserve
-*keep if propertyid==.
-*save "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\MCOX_listings_dta_data\MCOX_property_data_dirty.dta", replace
-*restore 
+
+********************************************************************************
+*Saving dirty data
+preserve
+keep if propertyid==.
+
+*===============================================================================
+*save "Y:\agrajg\Research\Data\FinalData\MCOX_property_data_dirty.dta", replace
+*===============================================================================
+
+restore 
+********************************************************************************
 
 drop if propertyid ==.
 drop v*
@@ -111,13 +126,21 @@ preserve
 keep if neighbourhood_cleansed !=""
 contract propertyid neighbourhood_cleansed latitude longitude 
 gen dist =.
-save "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\temp\has_neighbourhood_listings.dta", replace
+
+*===============================================================================
+save "Y:\agrajg\Research\Data\temp\has_neighbourhood_listings.dta", replace
+*===============================================================================
+
 restore 
 
 preserve
 keep if neighbourhood_cleansed ==""
 contract propertyid neighbourhood_cleansed latitude longitude 
-save "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\temp\no_neighbourhood_listings.dta", replace
+
+*===============================================================================
+save "Y:\agrajg\Research\Data\temp\no_neighbourhood_listings.dta", replace
+*===============================================================================
+
 restore 
 
 preserve
@@ -129,7 +152,11 @@ g closest_lat = .
 g closest_long = .
 g closest_neighbourhood_cleansed = ""
 g closest_propertyid= .
-save "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\temp\matched_neighbourhood.dta", replace
+
+*===============================================================================
+save "Y:\agrajg\Research\Data\temp\matched_neighbourhood.dta", replace
+*===============================================================================
+
 restore
 
 preserve
@@ -142,22 +169,36 @@ g closest_long = .
 g closest_neighbourhood_cleansed = ""
 g closest_propertyid= .
 set obs 1
-save "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\temp\matched_neighbourhood_test.dta", replace
+
+*===============================================================================
+save "Y:\agrajg\Research\Data\temp\matched_neighbourhood_test.dta", replace
+*===============================================================================
+
 restore
 
 preserve
-use "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\temp\no_neighbourhood_listings.dta", clear 
+
+*===============================================================================
+use "Y:\agrajg\Research\Data\temp\no_neighbourhood_listings.dta", clear 
+*===============================================================================
+
 count
 global cnt = r(N)
 forvalues i = 1(1) $cnt {
 *forvalues i = 1(1) 2 {
 
-use "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\temp\no_neighbourhood_listings.dta", clear
+*===============================================================================
+use "Y:\agrajg\Research\Data\temp\no_neighbourhood_listings.dta", clear
+*===============================================================================
+
 global search_lat  = latitude[`i'] 
 global search_long = longitude[`i']
 global search_pid = propertyid[`i']
 
-use "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\temp\has_neighbourhood_listings.dta", clear
+*===============================================================================
+use "Y:\agrajg\Research\Data\temp\has_neighbourhood_listings.dta", clear
+*===============================================================================
+
 replace dist  = (latitude - $search_lat)^2 + (longitude - $search_long)^2
 egen min_dist = min(dist)
 keep if min_dist == dist
@@ -169,7 +210,10 @@ global closest_propertyid = propertyid[1]
 
 *macro list
 
-use "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\temp\matched_neighbourhood_test.dta", clear
+*===============================================================================
+use "Y:\agrajg\Research\Data\temp\matched_neighbourhood_test.dta", clear
+*===============================================================================
+
 replace search_lat = $search_lat
 replace search_long = $search_long
 replace search_pid = $search_pid
@@ -177,23 +221,39 @@ replace closest_lat = $closest_lat
 replace closest_long = $closest_long
 replace closest_neighbourhood_cleansed = "$closest_neighbourhood_cleansed"
 replace closest_propertyid= $closest_propertyid
-save "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\temp\matched_neighbourhood_test.dta", replace
 
-use "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\temp\matched_neighbourhood.dta", clear
-append using "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\temp\matched_neighbourhood_test.dta"
-save "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\temp\matched_neighbourhood.dta", replace
+*===============================================================================
+save "Y:\agrajg\Research\Data\temp\matched_neighbourhood_test.dta", replace
+*===============================================================================
+
+*===============================================================================
+use "Y:\agrajg\Research\Data\temp\matched_neighbourhood.dta", clear
+append using "Y:\agrajg\Research\Data\temp\matched_neighbourhood_test.dta"
+save "Y:\agrajg\Research\Data\temp\matched_neighbourhood.dta", replace
+*===============================================================================
+
 }
-capture erase "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\temp\matched_neighbourhood_test.dta"
-capture erase "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\temp\has_neighbourhood_listings.dta"
-capture erase "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\temp\no_neighbourhood_listings.dta"
-use "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\temp\matched_neighbourhood.dta", clear
+
+
+*===============================================================================
+use "Y:\agrajg\Research\Data\temp\matched_neighbourhood.dta", clear
+*===============================================================================
+
 drop closest_lat closest_long closest_propertyid
 rename search_lat  latitude 
 rename search_long  longitude
 rename search_pid  propertyid 
-save "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\temp\matched_neighbourhood.dta", replace
+
+*===============================================================================
+save "Y:\agrajg\Research\Data\temp\matched_neighbourhood.dta", replace
+*===============================================================================
+
 restore
-merge m:1 propertyid latitude longitude using "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\temp\matched_neighbourhood.dta", nogenerate
+
+*===============================================================================
+merge m:1 propertyid latitude longitude using "Y:\agrajg\Research\Data\temp\matched_neighbourhood.dta", nogenerate
+*===============================================================================
+
 replace neighbourhood_cleansed = closest_neighbourhood_cleansed  if neighbourhood_cleansed==""
 drop closest_neighbourhood_cleansed
 ********************************************************************************
@@ -264,3 +324,7 @@ order propertyid scraped_date
 duplicates drop
 duplicates drop propertyid scraped_date, force
 
+*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+**********************************  END  ***************************************
+********************** cleaning_MCOX_property_data.do **************************
+*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
