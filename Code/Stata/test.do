@@ -1,92 +1,152 @@
-clear all 
+clear all
 set more off
-use "Y:\agrajg\Airbnb_data\AirbnbDataCodeMay2017\Data\temp\AIRDNA_market_data_clean1.dta", clear
-sort propertyid date status price reservationid bookeddate datasetnum
-order propertyid date status price reservationid bookeddate datasetnum
-drop if propertyid == . & date==.
+
+use "Y:\agrajg\Research\Data\FinalData\AIRDNA_listings_data_clean_final1.dta" 
+
+label var createddate "Date listing created"
+label var lastscrapeddate "Date when listing was last scraped"
+
 ********************************************************************************
-*** Duplicates removed in earlier file.
-reshape wide status price reservationid bookeddate , i( propertyid date ) j( datasetnum )
+************************ STRING MISSING VALUES *********************************
+***************************  REPLACE BY NA  ************************************
+global string_variables2   listingtitle propertytype listingtype  country state city neighborhood metropolitanstatisticalarea superhost cancellationpolicy checkouttime  checkouttime businessready instantbookenabled listingurl listingmainimageurl
+foreach var in $string_variables2 {
+replace `var' = "NR" if `var' == ""
+}
+********************************************************************************
+********************************************************************************
+********************************************************************************
 
-gen status = status2 if status2 == status1 | status1==""
-replace status = status1 if status2 =="" & status1 !=""
-
-gen price = price2 if price2 == price1 | price1==.
-replace price = price1 if price2 ==. & price1 !=.
-
-gen reservationid = reservationid2 if reservationid2 == reservationid1 | reservationid1==.
-replace reservationid = reservationid1 if reservationid2 ==. & reservationid1 !=.
-
-gen bookeddate = bookeddate2 if bookeddate2 == bookeddate1 | bookeddate1==.
-replace bookeddate = bookeddate1 if bookeddate2 ==. & bookeddate1 !=.
-
-* CONFLICT IN STATUS
-* Only one kind of conflict. The old data has A statuses and new data has them as R without booking id or booking date.
-* stick with new for now
-replace status = status2 if status==""
- 
-
-* CONFLICT IN PRICE
-* price for blocked status does not matter. 
-* one possibility is to pick a price closer to mean of the rest
-bys propertyid status: egen meanprice = mean(price)
-replace price = price2 if price==. & abs(price2 - meanprice) > abs(price1 - meanprice)
-replace price = price1 if price==. & abs(price1 - meanprice) > abs(price2 - meanprice)
+********************************************************************************
+************************ NUMERIC (other fee) MISSING VALUES ********************
+***************************  REPLACE BY 0  ************************************
+foreach var in securitydeposit cleaningfee extrapeoplefee {
+replace `var' = 0 if `var' == .
+}
 
 
+********************************************************************************
+************************ NUMERIC (other attributes) MISSING VALUES *************
+***************************  REPLACE BY 0  ************************************
 
-* CONFLICT IN RESERVATION ID
+foreach var in bedrooms bathrooms maxguests minimumstay numberofphotos{
+replace `var' = 0 if `var' == .
+}
+********************************************************************************
+************************     Filling in other varibles   ***********************
+********************************************************************************
+tostring zipcode , replace
+replace zipcode = "NR" if zipcode==""
+replace responserate = 0 if responserate ==.
+replace responsetimemin = 16200 if  responsetimemin==. // no response = no response in 3 months  
 
+********************************************************************************
+**************** CLEANING CHECK IN TIME ****************************************
+********************************************************************************
+gen checkouttime1 = checkouttime  
+replace checkouttime  =  subinstr(checkouttime  ," ","",.)
+*replace checkouttime  =  subinstr(checkouttime  ,":00",".0",.)
+replace checkouttime  =  subinstr(checkouttime  ,"PM(noon)","PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"AM(midnight)","AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"AM(nextday)","AM",.)
 
-* CONFLICT IN BOOKED DATE
- 
+replace checkouttime  = "1:00PM" if checkouttime =="1" | checkouttime =="1:00"
+replace checkouttime  = "2:00PM" if checkouttime =="2" | checkouttime =="2:00"
+replace checkouttime  = "3:00PM" if checkouttime =="3" | checkouttime =="3:00"
+replace checkouttime  = "4:00PM" if checkouttime =="4" | checkouttime =="4:00"
+replace checkouttime  = "5:00PM" if checkouttime =="5" | checkouttime =="5:00"
+replace checkouttime  = "6:00PM" if checkouttime =="6" | checkouttime =="6:00"
+replace checkouttime  = "7:00PM" if checkouttime =="7" | checkouttime =="7:00"
+replace checkouttime  = "8:00AM" if checkouttime =="8" | checkouttime =="8:00"
+replace checkouttime  = "9:00AM" if checkouttime =="9" | checkouttime =="9:00"
+replace checkouttime  = "10:00AM" if checkouttime =="10" | checkouttime =="10:00"
+replace checkouttime  = "11:00AM" if checkouttime =="11" | checkouttime =="11:00"
+replace checkouttime  = "12:00PM" if checkouttime =="12" | checkouttime =="12:00"
 
+replace checkouttime  = "1:30PM" if checkouttime =="1.5" | checkouttime =="1:30"
+replace checkouttime  = "2:30PM" if checkouttime =="2.5" | checkouttime =="2:30"
+replace checkouttime  = "3:30PM" if checkouttime =="3.5" | checkouttime =="3:30"
+replace checkouttime  = "4:30PM" if checkouttime =="4.5" | checkouttime =="4:30"
+replace checkouttime  = "5:30PM" if checkouttime =="5.5" | checkouttime =="5:30"
+replace checkouttime  = "6:30PM" if checkouttime =="6.5" | checkouttime =="6:30"
+replace checkouttime  = "7:30PM" if checkouttime =="7.5" | checkouttime =="7:30"
+replace checkouttime  = "8:30AM" if checkouttime =="8.5" | checkouttime =="8:30"
+replace checkouttime  = "9:30AM" if checkouttime =="9.5" | checkouttime =="9:30"
+replace checkouttime  = "10:30AM" if checkouttime =="10.5" | checkouttime =="10:30"
+replace checkouttime  = "11:30AM" if checkouttime =="11.5" | checkouttime =="11:30"
+replace checkouttime  = "12:30PM" if checkouttime =="12.5" | checkouttime =="12:30"
 
+replace checkouttime  =  subinstr(checkouttime  ,"Anytimeafter","",.)
+*replace checkouttime  =  subinstr(checkouttime  ,".0",":00",.)
+*replace checkouttime  =  subinstr(checkouttime  ,".5",":30",.)
+replace checkouttime  =  subinstr(checkouttime  ,"Anytimeafter","",.)
+replace checkouttime  =  subinstr(checkouttime  ,"-"," ",.)
 
-
-
-
-/********************************************************************************
-collapse (last) lastbookeddate = bookeddate (first) firstbookeddate = bookeddate ///
-	, by ( propertyid date status price reservationid )
-
-collapse (last) lastreservationid = reservationid (first) firstreservationid = reservationid ///
-	(last) lastlastbookeddate = lastbookeddate (first) firstlastbookeddate = lastbookeddate /// 
-	(last) lastfirstbookeddate = firstbookeddate (first) firstfirstbookeddate = firstbookeddate ///
-	, by ( propertyid date status price)
-
-collapse (last) lastprice  = price (first) firstprice = price ///
-	(last) lastlastreservationid = lastreservationid (first) firstlastreservationid = lastreservationid ///
-	(last) lastfirstreservationid = firstreservationid (first) firstfirstreservationid = firstreservationid ///
-	(last) lastlastlastbookeddate = lastlastbookeddate (first) firstlastlastbookeddate = lastlastbookeddate /// 
-	(last) lastfirstlastbookeddate = firstlastbookeddate (first) firstfirstlastbookeddate = firstlastbookeddate /// 
-	(last) lastlastfirstbookeddate = lastfirstbookeddate (first) firstlastfirstbookeddate = lastfirstbookeddate ///
-	(last) lastfirstfirstbookeddate = firstfirstbookeddate (first) firstfirstfirstbookeddate = firstfirstbookeddate ///
-	, by ( propertyid date status )
-
-collapse (first) firststatus = status (last) laststatus = status ///
-	(last) lastlastprice  = lastprice (first) firstlastprice = lastprice ///
-	(last) lastfirstprice  = firstprice (first) firstfirstprice = firstprice ///
-	(last) lastlastlastreservationid = lastlastreservationid (first) firstlastlastreservationid = lastlastreservationid ///
-	(last) lastfirstlastreservationid = firstlastreservationid (first) firstfirstlastreservationid = firstlastreservationid ///
-	(last) lastlastfirstreservationid = lastfirstreservationid (first) firstlastfirstreservationid = lastfirstreservationid ///
-	(last) lastfirstfirstreservationid = firstfirstreservationid (first) firstfirstfirstreservationid = firstfirstreservationid ///
-	(last) lastlastlastlastbookeddate = lastlastlastbookeddate (first) firstlastlastlastbookeddate = lastlastlastbookeddate /// 
-	(last) lastfirstlastlastbookeddate = firstlastlastbookeddate (first) firstfirstlastlastbookeddate = firstlastlastbookeddate /// 
-	(last) lastlastfirstlastbookeddate = lastfirstlastbookeddate (first) firstlastfirstlastbookeddate = lastfirstlastbookeddate /// 
-	(last) lastfirstfirstlastbookeddate = firstfirstlastbookeddate (first) firstfirstfirstlastbookeddate = firstfirstlastbookeddate /// 
-	(last) lastlastlastfirstbookeddate = lastlastfirstbookeddate (first) firstlastlastfirstbookeddate = lastlastfirstbookeddate ///
-	(last) lastfirstlastfirstbookeddate = firstlastfirstbookeddate (first) firstfirstlastfirstbookeddate = firstlastfirstbookeddate ///
-	(last) lastlastfirstfirstbookeddate = lastfirstfirstbookeddate (first) firstlastfirstfirstbookeddate = lastfirstfirstbookeddate ///
-	(last) lastfirstfirstfirstbookeddate = firstfirstfirstbookeddate (first) firstfirstfirstfirstbookeddate = firstfirstfirstbookeddate ///
-	, by ( propertyid date )
-********************************************************************************	
+replace checkouttime  =  subinstr(checkouttime  ,"1AM","1:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"2AM","2:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"3AM","3:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"4AM","4:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"5AM","5:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"6AM","6:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"7AM","7:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"8AM","8:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"9AM","9:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"10AM","10:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"11AM","11:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"11AM","12:00AM",.)
 	
-	
-/*** Checks for inconsistancy 
-bys propertyid date: gen check_multientry1 = _N
-bys propertyid date status: gen check_multientry2 = _N
-bys propertyid date status price : gen check_multientry3 = _N
-bys propertyid date status price reservationid: gen check_multientry4 = _N
-bys propertyid date status price reservationid bookeddate: gen check_multientry5 = _N
-tab1 check_multientry1 check_multientry2 check_multientry3 check_multientry4 check_multientry5
+replace checkouttime  =  subinstr(checkouttime  ,"1PM","1:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"2PM","2:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"3PM","3:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"4PM","4:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"5PM","5:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"6PM","6:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"7PM","7:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"8PM","8:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"9PM","9:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"10PM","10:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"11PM","11:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"11PM","12:00PM",.)
+
+
+
+generate str1 startcheckouttime  = ""
+replace startcheckouttime  = substr(checkouttime ,1,strpos(checkouttime ," ") - 1)
+generate str1 endcheckouttime  = ""
+replace endcheckouttime  = substr(checkouttime ,strpos(checkouttime ," ") + 1,.)
+capture drop tempvar
+gen tempvar = (startcheckouttime =="")
+replace startcheckouttime  = endcheckouttime  if tempvar == 1
+replace endcheckouttime  = "" if tempvar == 1
+replace endcheckouttime  = "12:00AM" if endcheckouttime ==""	
+
+
+gen checkinperiod = .
+replace checkinperiod = 24 if checkouttime  == "Flexible"
+replace checkouttime  ="" if checkouttime  == "Flexible"
+
+gen double t1 = clock( startcheckouttime  , "hm")
+gen double t2 = clock( endcheckouttime  , "hm")
+
+format %tc t1
+format %tc t2
+
+gen diff1 = t2 - t1
+replace t2 = t2 + 86400000 if diff1 <=0
+replace checkinperiod = (t2-t1)/(3600000) if checkinperiod==.
+replace checkouttime  = startcheckouttime 
+replace checkinperiod = 24 if checkouttime  == "NR"
+order checkinperiod, after (checkouttime )
+
+label var checkouttime  "Check-in time"
+label var checkinperiod "Check-in flexible preiod"
+
+
+drop startcheckouttime  endcheckouttime  tempvar t1 t2 diff1
+*contract checkouttime  checkinperiod
+br if checkouttime  =="NR"
+
+
+********************************************************************************
+********************************************************************************
+********************************************************************************

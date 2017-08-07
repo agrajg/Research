@@ -38,7 +38,8 @@ label variable datasetnum "Data Set Number"
 *sort propertyid hostid
 *keep if _n<=200
 ********************************************************************************
-******** CLEANING ID VARIABLES
+********** CLEANING ID VARIABLES ***********************************************
+********************************************************************************
 duplicates drop
 replace propertyid = trim(propertyid)
 replace hostid = trim(hostid)
@@ -143,7 +144,7 @@ use "Y:\agrajg\Research\Data\temp\no_neighbourhood_listings.dta", clear
 count
 global cnt = r(N)
 forvalues i = 1(1) $cnt {
-*forvalues i = 1(1) 2 {
+*forvalues i = 1(1) 10 {
 *local i = 1999
 
 * ==============================================================================
@@ -222,43 +223,26 @@ merge m:1 propertyid latitude longitude using "Y:\agrajg\Research\Data\temp\matc
 
 replace neighborhood = closest_neighborhood  if neighborhood==""
 drop closest_neighborhood
+
+* ==============================================================================
+save Y:\agrajg\Research\Data\temp\AIRDNAListingsWithCleanedNeighborhood.dta
+* ==============================================================================
+
 *erase "Y:\agrajg\Research\Data\temp\matched_neighbourhood.dta"
 ********************************************************************************
 ********************************************************************************
-
 ********************************************************************************
-**************************** CLEANING HOST ID  *********************************
 ********************************************************************************
-*** host id from MCOX
-preserve
-
-* ==============================================================================
-use "Y:\agrajg\Research\Data\FinalData\MCOX_property_data_clean_final.dta" , clear
-* ==============================================================================
-
-contract propertyid host_id
-drop _freq
-
-* ==============================================================================
-save "Y:\agrajg\Research\Data\temp\host_id_mcox.dta",replace
-* ==============================================================================
-
-restore
-
-* ==============================================================================
-merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\host_id_mcox.dta"
-* ==============================================================================
-
-replace hostid = host_id if hostid ==.
-drop host_id
 ********************************************************************************
-*** Removing observations coming from using file
 
-drop if _merge==2
-drop _merge
+* ==============================================================================
+use  Y:\agrajg\Research\Data\temp\AIRDNAListingsWithCleanedNeighborhood.dta, clear
+* ==============================================================================
+
+
 ********************************************************************************
 *** Dropping redundent variables
-
+********************************************************************************
 drop averagedailyrate annualrevenueltm occupancyrateltm numberofbookingsltm numberofreviews overallrating calendarlastupdated countreservationdaysltm countavailabledaysltm countblockeddaysltm
 ********************************************************************************
 *** Replacing errors in names / tags 
@@ -294,29 +278,37 @@ preserve
 	use "Y:\agrajg\Research\Data\FinalData\AIRDNA_market_data_clean_final.dta", clear
 	* ==============================================================================
 	
-	collapse (min) first_observed_date = date (count) count = date , by (propertyid status )
-	reshape wide first_observed_date count , i( propertyid ) j( status ) s
-	format %9.0g countA countB countR
-	gen earliestdateAR = first_observed_dateA if first_observed_dateA <= first_observed_dateR
-	replace earliestdateAR = first_observed_dateR if first_observed_dateA > first_observed_dateR
-	format %td earliestdateAR
-	keep propertyid earliestdateAR
+	*collapse (min) first_observed_date = date (count) count = date , by (propertyid status )
+	collapse (min) first_observed_date = date (max) last_observed_date = date , by (propertyid  )
+
+	*reshape wide first_observed_date count , i( propertyid ) j( status ) s
+	*format %9.0g countA countB countR
+	*gen earliestdateAR = first_observed_dateA if first_observed_dateA <= first_observed_dateR
+	*replace earliestdateAR = first_observed_dateR if first_observed_dateA > first_observed_dateR
+	
+	format %td first_observed_date last_observed_date
 	
 	* ==============================================================================
-	save "Y:\agrajg\Research\Data\temp\AIRDNA_market_earliestdateAR.dta", replace 
+	save "Y:\agrajg\Research\Data\temp\AIRDNA_market_earliestlatestdate.dta", replace 
 	* ==============================================================================
 
 restore
 
 * ==============================================================================
-merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\AIRDNA_market_earliestdateAR.dta"
+merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\AIRDNA_market_earliestlatestdate.dta"
 * ==============================================================================
 
 tab _merge
 drop _merge
-replace createddate = earliestdateAR if createddate ==.
-drop earliestdateAR
+replace createddate = first_observed_date if createddate ==.
+drop first_observed_date
+******************************SCRAPEDATE CLEANING*******************************
+replace lastscrapeddate = last_observed_date if lastscrapeddate ==.
+drop last_observed_date
 
+
+********************************************************************************
+********************************************************************************
 ********************************************************************************
 * Filling in the missing values
 egen missobs = rowmiss( propertyid - datasetnum )
@@ -339,6 +331,276 @@ drop if count3 >1
 duplicates list propertyid
 **** There should be none
 ********************************************************************************
+
+********************************************************************************
+**************************** CLEANING HOST ID  *********************************
+********************************************************************************
+*** host id from MCOX
+preserve
+
+* ==============================================================================
+use "Y:\agrajg\Research\Data\FinalData\MCOX_property_data_clean_final.dta" , clear
+* ==============================================================================
+
+contract propertyid host_id
+drop _freq
+
+* ==============================================================================
+save "Y:\agrajg\Research\Data\temp\host_id_mcox.dta",replace
+* ==============================================================================
+
+restore
+
+preserve
+contract propertyid hostid
+drop _freq
+merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\host_id_mcox.dta"
+
+gen temphostid = .
+replace temphostid = hostid if hostid != host_id & hostid !=. & host_id !=.
+replace temphostid = hostid if hostid !=. & host_id ==.
+replace temphostid = host_id if hostid ==. & host_id !=.
+replace temphostid = hostid if hostid == host_id
+sum temphostid
+sort propertyid hostid
+replace temphostid = _n + `r(max)' if temphostid==.
+keep propertyid temphostid
+
+* ==============================================================================
+save "Y:\agrajg\Research\Data\temp\host_id_all.dta",replace
+* ==============================================================================
+
+restore
+
+* ==============================================================================
+merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\host_id_all.dta"
+* ==============================================================================
+
+replace hostid = temphostid if hostid ==.
+drop temphostid
+********************************************************************************
+*** Removing observations coming from using file
+
+drop if _merge==2
+drop _merge
+********************************************************************************
+***************************** When response id not observed ********************
+********************************************************************************
+********************************************************************************
+************************ STRING MISSING VALUES *********************************
+***************************  REPLACE BY NA  ************************************
+global string_variables2   listingtitle propertytype listingtype  country state city neighborhood metropolitanstatisticalarea superhost cancellationpolicy checkintime checkouttime businessready instantbookenabled listingurl listingmainimageurl
+foreach var in $string_variables2 {
+replace `var' = "NR" if `var' == ""
+}
+********************************************************************************
+********************************************************************************
+********************************************************************************
+
+********************************************************************************
+************************ NUMERIC (other fee) MISSING VALUES ********************
+***************************  REPLACE BY 0  ************************************
+foreach var in securitydeposit cleaningfee extrapeoplefee {
+replace `var' = 0 if `var' == .
+}
+
+
+********************************************************************************
+************************ NUMERIC (other attributes) MISSING VALUES *************
+***************************  REPLACE BY 0  ************************************
+
+foreach var in bedrooms bathrooms maxguests minimumstay numberofphotos{
+replace `var' = 0 if `var' == .
+}
+********************************************************************************
+************************     Filling in other varibles   ***********************
+********************************************************************************
+tostring zipcode , replace
+replace zipcode = "NR" if zipcode==""
+replace responserate = 0 if responserate ==.
+replace responsetimemin = 16200 if  responsetimemin==. // no response = no response in 3 months  
+
+********************************************************************************
+**************** CLEANING CHECK OUT TIME ***************************************
+********************************************************************************
+
+
+replace checkouttime  =  subinstr(checkouttime  ," ","",.)
+*replace checkouttime  =  subinstr(checkouttime  ,":00",".0",.)
+replace checkouttime  =  subinstr(checkouttime  ,"PM(noon)","PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"AM(midnight)","AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"AM(nextday)","AM",.)
+
+replace checkouttime  = "1:00PM" if checkouttime =="1" | checkouttime =="1:00"
+replace checkouttime  = "2:00PM" if checkouttime =="2" | checkouttime =="2:00"
+replace checkouttime  = "3:00PM" if checkouttime =="3" | checkouttime =="3:00"
+replace checkouttime  = "4:00PM" if checkouttime =="4" | checkouttime =="4:00"
+replace checkouttime  = "5:00PM" if checkouttime =="5" | checkouttime =="5:00"
+replace checkouttime  = "6:00PM" if checkouttime =="6" | checkouttime =="6:00"
+replace checkouttime  = "7:00PM" if checkouttime =="7" | checkouttime =="7:00"
+replace checkouttime  = "8:00AM" if checkouttime =="8" | checkouttime =="8:00"
+replace checkouttime  = "9:00AM" if checkouttime =="9" | checkouttime =="9:00"
+replace checkouttime  = "10:00AM" if checkouttime =="10" | checkouttime =="10:00"
+replace checkouttime  = "11:00AM" if checkouttime =="11" | checkouttime =="11:00"
+replace checkouttime  = "12:00PM" if checkouttime =="12" | checkouttime =="12:00"
+
+replace checkouttime  = "1:30PM" if checkouttime =="1.5" | checkouttime =="1:30"
+replace checkouttime  = "2:30PM" if checkouttime =="2.5" | checkouttime =="2:30"
+replace checkouttime  = "3:30PM" if checkouttime =="3.5" | checkouttime =="3:30"
+replace checkouttime  = "4:30PM" if checkouttime =="4.5" | checkouttime =="4:30"
+replace checkouttime  = "5:30PM" if checkouttime =="5.5" | checkouttime =="5:30"
+replace checkouttime  = "6:30PM" if checkouttime =="6.5" | checkouttime =="6:30"
+replace checkouttime  = "7:30PM" if checkouttime =="7.5" | checkouttime =="7:30"
+replace checkouttime  = "8:30AM" if checkouttime =="8.5" | checkouttime =="8:30"
+replace checkouttime  = "9:30AM" if checkouttime =="9.5" | checkouttime =="9:30"
+replace checkouttime  = "10:30AM" if checkouttime =="10.5" | checkouttime =="10:30"
+replace checkouttime  = "11:30AM" if checkouttime =="11.5" | checkouttime =="11:30"
+replace checkouttime  = "12:30PM" if checkouttime =="12.5" | checkouttime =="12:30"
+
+replace checkouttime  =  subinstr(checkouttime  ,"Anytimeafter","",.)
+*replace checkouttime  =  subinstr(checkouttime  ,".0",":00",.)
+*replace checkouttime  =  subinstr(checkouttime  ,".5",":30",.)
+replace checkouttime  =  subinstr(checkouttime  ,"Anytimeafter","",.)
+replace checkouttime  =  subinstr(checkouttime  ,"-"," ",.)
+
+replace checkouttime  =  subinstr(checkouttime  ,"1AM","1:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"2AM","2:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"3AM","3:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"4AM","4:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"5AM","5:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"6AM","6:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"7AM","7:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"8AM","8:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"9AM","9:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"10AM","10:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"11AM","11:00AM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"11AM","12:00AM",.)
+	
+replace checkouttime  =  subinstr(checkouttime  ,"1PM","1:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"2PM","2:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"3PM","3:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"4PM","4:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"5PM","5:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"6PM","6:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"7PM","7:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"8PM","8:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"9PM","9:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"10PM","10:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"11PM","11:00PM",.)
+replace checkouttime  =  subinstr(checkouttime  ,"11PM","12:00PM",.)
+
+********************************************************************************
+**************** CLEANING CHECK IN TIME ****************************************
+********************************************************************************
+
+replace checkintime =  subinstr(checkintime ," ","",.)
+*replace checkintime =  subinstr(checkintime ,":00",".0",.)
+replace checkintime =  subinstr(checkintime ,"PM(noon)","PM",.)
+replace checkintime =  subinstr(checkintime ,"AM(midnight)","AM",.)
+replace checkintime =  subinstr(checkintime ,"AM(nextday)","AM",.)
+
+replace checkintime = "1:00PM" if checkintime=="1" | checkintime=="1:00"
+replace checkintime = "2:00PM" if checkintime=="2" | checkintime=="2:00"
+replace checkintime = "3:00PM" if checkintime=="3" | checkintime=="3:00"
+replace checkintime = "4:00PM" if checkintime=="4" | checkintime=="4:00"
+replace checkintime = "5:00PM" if checkintime=="5" | checkintime=="5:00"
+replace checkintime = "6:00PM" if checkintime=="6" | checkintime=="6:00"
+replace checkintime = "7:00PM" if checkintime=="7" | checkintime=="7:00"
+replace checkintime = "8:00AM" if checkintime=="8" | checkintime=="8:00"
+replace checkintime = "9:00AM" if checkintime=="9" | checkintime=="9:00"
+replace checkintime = "10:00AM" if checkintime=="10" | checkintime=="10:00"
+replace checkintime = "11:00AM" if checkintime=="11" | checkintime=="11:00"
+replace checkintime = "12:00PM" if checkintime=="12" | checkintime=="12:00"
+
+replace checkintime = "1:30PM" if checkintime=="1.5" | checkintime=="1:30"
+replace checkintime = "2:30PM" if checkintime=="2.5" | checkintime=="2:30"
+replace checkintime = "3:30PM" if checkintime=="3.5" | checkintime=="3:30"
+replace checkintime = "4:30PM" if checkintime=="4.5" | checkintime=="4:30"
+replace checkintime = "5:30PM" if checkintime=="5.5" | checkintime=="5:30"
+replace checkintime = "6:30PM" if checkintime=="6.5" | checkintime=="6:30"
+replace checkintime = "7:30PM" if checkintime=="7.5" | checkintime=="7:30"
+replace checkintime = "8:30AM" if checkintime=="8.5" | checkintime=="8:30"
+replace checkintime = "9:30AM" if checkintime=="9.5" | checkintime=="9:30"
+replace checkintime = "10:30AM" if checkintime=="10.5" | checkintime=="10:30"
+replace checkintime = "11:30AM" if checkintime=="11.5" | checkintime=="11:30"
+replace checkintime = "12:30PM" if checkintime=="12.5" | checkintime=="12:30"
+
+replace checkintime =  subinstr(checkintime ,"Anytimeafter","",.)
+*replace checkintime =  subinstr(checkintime ,".0",":00",.)
+*replace checkintime =  subinstr(checkintime ,".5",":30",.)
+replace checkintime =  subinstr(checkintime ,"Anytimeafter","",.)
+replace checkintime =  subinstr(checkintime ,"-"," ",.)
+
+replace checkintime =  subinstr(checkintime ,"1AM","1:00AM",.)
+replace checkintime =  subinstr(checkintime ,"2AM","2:00AM",.)
+replace checkintime =  subinstr(checkintime ,"3AM","3:00AM",.)
+replace checkintime =  subinstr(checkintime ,"4AM","4:00AM",.)
+replace checkintime =  subinstr(checkintime ,"5AM","5:00AM",.)
+replace checkintime =  subinstr(checkintime ,"6AM","6:00AM",.)
+replace checkintime =  subinstr(checkintime ,"7AM","7:00AM",.)
+replace checkintime =  subinstr(checkintime ,"8AM","8:00AM",.)
+replace checkintime =  subinstr(checkintime ,"9AM","9:00AM",.)
+replace checkintime =  subinstr(checkintime ,"10AM","10:00AM",.)
+replace checkintime =  subinstr(checkintime ,"11AM","11:00AM",.)
+replace checkintime =  subinstr(checkintime ,"11AM","12:00AM",.)
+	
+replace checkintime =  subinstr(checkintime ,"1PM","1:00PM",.)
+replace checkintime =  subinstr(checkintime ,"2PM","2:00PM",.)
+replace checkintime =  subinstr(checkintime ,"3PM","3:00PM",.)
+replace checkintime =  subinstr(checkintime ,"4PM","4:00PM",.)
+replace checkintime =  subinstr(checkintime ,"5PM","5:00PM",.)
+replace checkintime =  subinstr(checkintime ,"6PM","6:00PM",.)
+replace checkintime =  subinstr(checkintime ,"7PM","7:00PM",.)
+replace checkintime =  subinstr(checkintime ,"8PM","8:00PM",.)
+replace checkintime =  subinstr(checkintime ,"9PM","9:00PM",.)
+replace checkintime =  subinstr(checkintime ,"10PM","10:00PM",.)
+replace checkintime =  subinstr(checkintime ,"11PM","11:00PM",.)
+replace checkintime =  subinstr(checkintime ,"11PM","12:00PM",.)
+
+
+
+generate str1 startcheckintime = ""
+replace startcheckintime = substr(checkintime,1,strpos(checkintime," ") - 1)
+generate str1 endcheckintime = ""
+replace endcheckintime = substr(checkintime,strpos(checkintime," ") + 1,.)
+capture drop tempvar
+gen tempvar = (startcheckintime=="")
+replace startcheckintime = endcheckintime if tempvar == 1
+replace endcheckintime = "" if tempvar == 1
+replace endcheckintime = "12:00AM" if endcheckintime==""	
+
+
+gen checkinperiod = .
+replace checkinperiod = 24 if checkintime == "Flexible"
+replace checkintime ="" if checkintime == "Flexible"
+
+gen double t1 = clock( startcheckintime , "hm")
+gen double t2 = clock( endcheckintime , "hm")
+
+format %tc t1
+format %tc t2
+
+gen diff1 = t2 - t1
+replace t2 = t2 + 86400000 if diff1 <=0
+replace checkinperiod = (t2-t1)/(3600000) if checkinperiod==.
+replace checkintime = startcheckintime
+replace checkinperiod = 24 if checkintime == "NR"
+order checkinperiod, after (checkintime)
+
+label var checkintime "Check-in time"
+label var checkinperiod "Check-in flexible preiod"
+
+
+drop startcheckintime endcheckintime tempvar t1 t2 diff1
+*contract checkintime checkinperiod
+*br if checkintime =="NR"
+
+
+********************************************************************************
+********************************************************************************
+********************************************************************************
+
+
 ********************************************************************************
 ***** formating and finalizing
 keep propertyid-listingtitle 
