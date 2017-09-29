@@ -124,10 +124,10 @@ count if price ==.
 ********************************************************************************
 *******************************RESERVATION ID***********************************
 ********************************************************************************
-gen reservationid = reservationid2 if reservationid2 == reservationid1 | reservationid1==.
-replace reservationid = reservationid1 if reservationid2 ==. & reservationid==.
-gen reservationidalt = reservationid1 if reservationid ==.
-replace reservationid = reservationid2 if reservationid ==.
+gen reservationid = reservationid2
+replace reservationid = reservationid1 if reservationid==.
+gen reservationidalt = reservationid1 if reservationid1 != reservationid2
+
 * CONFLICT IN RESERVATION ID
 * take 2 as primary and 1 as secondary 
 *		gen reservationidalt = reservationid1
@@ -137,11 +137,10 @@ replace reservationid = . if status =="B" | status == "A"
 ********************************************************************************
 ******************************BOOKED DATE***************************************
 ********************************************************************************
+gen bookeddate = bookeddate2
+replace bookeddate = bookeddate1 if bookeddate==.
+gen bookeddatealt = bookeddate1 if bookeddate1 != bookeddate2
 
-gen bookeddate = bookeddate2 if bookeddate2 == bookeddate1 | bookeddate1==.
-replace bookeddate = bookeddate1 if bookeddate2 ==. & bookeddate==.
-gen bookeddatealt = bookeddate1 if bookeddate ==.
-replace bookeddate = bookeddate2 if bookeddate ==.
 * CONFLICT IN BOOKED date
 * take 2 as primary and 1 as secondary 
 *		gen bookeddatealt = bookeddate1
@@ -149,7 +148,16 @@ replace bookeddatealt = bookeddate if status =="B" | status == "A"
 replace bookeddate = . if status =="B" | status == "A"
 
 ********************************************************************************
-
+*** Cleaning up conflics between status, reservationid and boookeddate *********
+********************************************************************************
+*** if status is A or B, and reservation id is present. it means cancellation, 
+*** there should be no reservation date, lets check
+count if (status =="A" | status =="B" ) & reservationid !=. & bookeddate !=. 
+*** should be zero
+replace status = "B" if status == "R" & reservationid ==.
+replace status = "B" if status == "R" & bookeddate==.
+* If there is a reservation there should be a reservationid and booked date
+count if status == "R" & (reservationid==. | bookeddate ==. )
 ********************************************************************************
 
 * checks 

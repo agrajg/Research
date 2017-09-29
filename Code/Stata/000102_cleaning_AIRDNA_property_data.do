@@ -225,7 +225,7 @@ replace neighborhood = closest_neighborhood  if neighborhood==""
 drop closest_neighborhood
 
 * ==============================================================================
-save Y:\agrajg\Research\Data\temp\AIRDNAListingsWithCleanedNeighborhood.dta
+save Y:\agrajg\Research\Data\temp\AIRDNAListingsWithCleanedNeighborhood.dta, replace
 * ==============================================================================
 
 *erase "Y:\agrajg\Research\Data\temp\matched_neighbourhood.dta"
@@ -337,7 +337,8 @@ duplicates list propertyid
 ********************************************************************************
 *** host id from MCOX
 preserve
-
+*** the host id are missing for many properties, I have assumed that properties 
+*** without host id have unique host which holds only one property 
 * ==============================================================================
 use "Y:\agrajg\Research\Data\FinalData\MCOX_property_data_clean_final.dta" , clear
 * ==============================================================================
@@ -600,6 +601,16 @@ drop startcheckintime endcheckintime tempvar t1 t2 diff1
 ********************************************************************************
 ********************************************************************************
 
+*** Encoding all catagorical variables
+global CatVariables propertytype listingtype country state city zipcode neighborhood metropolitanstatisticalarea superhost cancellationpolicy checkintime checkouttime businessready instantbookenabled 
+foreach var in $CatVariables {
+	rename `var' temp`var'
+	encode temp`var', generate(`var')
+	order `var', after(temp`var')
+	drop temp`var'
+}
+
+
 
 ********************************************************************************
 ***** formating and finalizing
@@ -608,6 +619,7 @@ format createddate  %td
 format lastscrapeddate %td
 label var createddate "Date listing created"
 label var lastscrapeddate "Date when listing was last scraped"
+
 *XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 *********************************** END ****************************************
 ********************** cleaning_AIRDNA_property_data.do ************************

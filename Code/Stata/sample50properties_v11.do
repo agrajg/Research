@@ -1,3 +1,13 @@
+keep if propertyid >= 954857 & propertyid <= 1008022
+keep if date>=td(01jan2015) & date <=td(31dec2015)
+
+
+
+
+
+
+
+/*
 keep if ///
 propertyid == 4946118 | ///
 propertyid == 683681  | ///

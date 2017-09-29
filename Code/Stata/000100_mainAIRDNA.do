@@ -15,7 +15,7 @@ timer clear
 timer on 1
 
 * ==============================================================================
-	do 						"Y:\agrajg\Research\Code\Stata\csvtodta_AIRDNA_AllData.do"
+	do 						"Y:\agrajg\Research\Code\Stata\000100_csvtodta_AIRDNA_AllData.do"
 * ==============================================================================
 
 timer off 1
@@ -25,7 +25,7 @@ timer off 1
 timer on 2
 
 * ==============================================================================
-	do 						"Y:\agrajg\Research\Code\Stata\cleaning_AIRDNA_property_data.do" 
+	do 						"Y:\agrajg\Research\Code\Stata\000101_cleaning_AIRDNA_property_data.do" 
 * ==============================================================================	
 
 	* saving all data
@@ -42,10 +42,10 @@ timer off 2
 timer on 3
 
 * ==============================================================================
-	do 						"Y:\agrajg\Research\Code\Stata\sample50properties_v11.do"
-	compress
-	save 					"Y:\agrajg\Research\Data\FinalData\AIRDNA_listings_data_clean_final_sample50.dta", replace 
-	export delimited using 	"Y:\agrajg\Research\Data\FinalData\AIRDNA_listings_data_clean_final_sample50.csv", replace
+*	do 						"Y:\agrajg\Research\Code\Stata\sample50properties_v11.do"
+*	compress
+*	save 					"Y:\agrajg\Research\Data\FinalData\AIRDNA_listings_data_clean_final_sample50.dta", replace 
+*	export delimited using 	"Y:\agrajg\Research\Data\FinalData\AIRDNA_listings_data_clean_final_sample50.csv", replace
 * ==============================================================================
 
 timer off 3 
@@ -55,7 +55,7 @@ timer off 3
 * I now work here ........ 
 
 * ==============================================================================
-do 						"Y:\agrajg\Research\Code\Stata\cleaning_AIRDNA_market_data.do"
+do 						"Y:\agrajg\Research\Code\Stata\000103_cleaning_AIRDNA_market_data.do"
 * ==============================================================================
 
 *saving all data
@@ -76,6 +76,6 @@ export delimited using 	"Y:\agrajg\Research\Data\FinalData\AIRDNA_market_data_cl
 * ==============================================================================
 
 *XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-*********************************** END ****************************************
+*********************************** END 000100 *********************************
 ****************************** mainAIRDNA.do ***********************************
 *XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
