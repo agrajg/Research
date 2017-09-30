@@ -49,7 +49,7 @@ replace HostType2E = "Others" if HostType2 == ""
 
 gen Hosttype3E = "Min 2 Entire Home Host" if MinEntHomePerHost >= 2  
 replace Hosttype3E = "Min 4 Entire Home Host" if MinEntHomePerHost >= 4
-replace Hosttype3E = "Others" if Hosttype3 ==""
+replace Hosttype3E = "Others" if Hosttype3E ==""
 
 
 capture drop _freq

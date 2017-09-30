@@ -19,12 +19,34 @@ drop state
 drop if merge1 ==2
 
 
-gen tempvar 		= "Period 1 : Pre Purge" 							if StayTo < td(20nov2015)
-replace tempvar 	= "Period 2 : Post Purge - Pre Expose" 				if StayTo >= td(20nov2015) & StayTo < td(10feb2016)
+gen tempvar 		= "Period 1 : Pre Purge" 							if StayTo < td(1oct2015)
+replace tempvar 	= "Period 2 : Post Purge - Pre Expose" 				if StayTo >= td(1oct2015) & StayTo < td(10feb2016)
 replace tempvar 	= "Period 3 : Post Expose - Pre Law Enforcement" 	if StayTo >= td(10feb2016) & StayTo < td(1nov2016)
 replace tempvar 	= "Period 4 : Post Law Enforcement" 				if StayTo >= td(1nov2016)
-encode tempvar, generate(event)
+encode tempvar, generate(event1)
 drop tempvar
+
+gen tempvar 		= "Period 1 : Pre Purge" 							if StayTo < td(1nov2015)
+replace tempvar 	= "Period 2 : Post Purge - Pre Expose" 				if StayTo >= td(1nov2015) & StayTo < td(10feb2016)
+replace tempvar 	= "Period 3 : Post Expose - Pre Law Enforcement" 	if StayTo >= td(10feb2016) & StayTo < td(1nov2016)
+replace tempvar 	= "Period 4 : Post Law Enforcement" 				if StayTo >= td(1nov2016)
+encode tempvar, generate(event2)
+drop tempvar
+
+gen tempvar 		= "Period 1 : Pre Purge" 							if StayTo < td(15nov2015)
+replace tempvar 	= "Period 2 : Post Purge - Pre Expose" 				if StayTo >= td(15nov2015) & StayTo < td(10feb2016)
+replace tempvar 	= "Period 3 : Post Expose - Pre Law Enforcement" 	if StayTo >= td(10feb2016) & StayTo < td(1nov2016)
+replace tempvar 	= "Period 4 : Post Law Enforcement" 				if StayTo >= td(1nov2016)
+encode tempvar, generate(event3)
+drop tempvar
+
+gen tempvar 		= "Period 1 : Pre Purge" 							if StayTo < td(30nov2015)
+replace tempvar 	= "Period 2 : Post Purge - Pre Expose" 				if StayTo >= td(30nov2015) & StayTo < td(10feb2016)
+replace tempvar 	= "Period 3 : Post Expose - Pre Law Enforcement" 	if StayTo >= td(10feb2016) & StayTo < td(1nov2016)
+replace tempvar 	= "Period 4 : Post Law Enforcement" 				if StayTo >= td(1nov2016)
+encode tempvar, generate(event4)
+drop tempvar
+
 
 global StrVariables  HostType1 HostType2 Hosttype3 HostType1E HostType2E Hosttype3E
 foreach var in $StrVariables {
@@ -36,11 +58,7 @@ foreach var in $StrVariables {
 
 gen lprice = ln(PricePerDay )
 gen lquan = ln(NumDays )
-reg lprice lquan
+gen listingage = StayFrom - createddate
 
 
-reg  lquan i.event i.HostType1 i.event#i.HostType1
-reg  lprice  i.event i.HostType1 i.event#i.HostType1
-reg  lprice lquan  i.event i.HostType1 i.event#i.HostType1
-reg   lquan  i.event i.HostType1E i.event#i.HostType1E
-save "Y:\agrajg\Research\Data\Meeting29Sept2017\TransactionsData.dta" , replace
+save Y:\agrajg\Research\Meeting29Sept2017\Transactions.dta, replace
