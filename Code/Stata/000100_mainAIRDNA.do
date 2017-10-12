@@ -8,72 +8,22 @@ set more off
 capture log close
 timer clear
 
-********************************************************************************
-********************** Convert raw csv into dta files **************************
-********************** both market and property data  **************************
-********************************************************************************
-timer on 1
 
 * ==============================================================================
-	do 						"Y:\agrajg\Research\Code\Stata\000100_csvtodta_AIRDNA_AllData.do"
+	do 						"Y:\agrajg\Research\Code\Stata\000101_csvtodta_AIRDNA_AllData.do"
 * ==============================================================================
 
-timer off 1
-********************************************************************************
-**************************** AIRDNA LISTINGS DATA ******************************
-********************************************************************************
-timer on 2
 
 * ==============================================================================
-	do 						"Y:\agrajg\Research\Code\Stata\000101_cleaning_AIRDNA_property_data.do" 
+	do 						"Y:\agrajg\Research\Code\Stata\000102_cleaning_AIRDNA_property_data.do" 
 * ==============================================================================	
 
-	* saving all data
-	
-* ==============================================================================	
-	compress
-	save 					"Y:\agrajg\Research\Data\FinalData\AIRDNA_listings_data_clean_final.dta", replace
-	export delimited using 	"Y:\agrajg\Research\Data\FinalData\AIRDNA_listings_data_clean_final.csv", replace
-* ==============================================================================
-
-timer off 2
-********************************************************************************
-* sampling 50 properties
-timer on 3
 
 * ==============================================================================
-*	do 						"Y:\agrajg\Research\Code\Stata\sample50properties_v11.do"
-*	compress
-*	save 					"Y:\agrajg\Research\Data\FinalData\AIRDNA_listings_data_clean_final_sample50.dta", replace 
-*	export delimited using 	"Y:\agrajg\Research\Data\FinalData\AIRDNA_listings_data_clean_final_sample50.csv", replace
+	do 						"Y:\agrajg\Research\Code\Stata\000103_cleaning_AIRDNA_market_data.do"
 * ==============================================================================
 
-timer off 3 
-********************************************************************************
-***************************** AIRDNA MARKET DATA *******************************
-********************************************************************************
-* I now work here ........ 
 
-* ==============================================================================
-do 						"Y:\agrajg\Research\Code\Stata\000103_cleaning_AIRDNA_market_data.do"
-* ==============================================================================
-
-*saving all data
-
-* ==============================================================================
-compress
-save 					"Y:\agrajg\Research\Data\FinalData\AIRDNA_market_data_clean_final.dta", replace 
-export delimited using 	"Y:\agrajg\Research\Data\FinalData\AIRDNA_market_data_clean_final.csv", replace
-* ==============================================================================
-
-*sampling 50 properties
-
-* ==============================================================================
-do 						"Y:\agrajg\Research\Code\Stata\sample50properties_v11.do"
-compress
-save 					"Y:\agrajg\Research\Data\FinalData\AIRDNA_market_data_clean_final_sample50.dta", replace 
-export delimited using 	"Y:\agrajg\Research\Data\FinalData\AIRDNA_market_data_clean_final_sample50.csv", replace
-* ==============================================================================
 
 *XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 *********************************** END 000100 *********************************

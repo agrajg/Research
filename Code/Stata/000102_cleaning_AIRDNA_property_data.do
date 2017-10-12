@@ -1,3 +1,4 @@
+
 *XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ********************************** BEGIN ***************************************
 ********************** cleaning_AIRDNA_property_data.do ************************
@@ -17,7 +18,7 @@ use "Y:\agrajg\Research\Data\RawAIRDNA_dta_data\Boroughs_Property_201604.dta" , 
 gen datasetnum = 1
 
 * ==============================================================================
-save "Y:\agrajg\Research\Data\temp\Boroughs_Property_201604_datasetnum.dta", replace
+save "Y:\agrajg\Research\Data\temp\000102_Boroughs_Property_201604_datasetnum.dta", replace
 * ==============================================================================
 
 * ==============================================================================
@@ -27,7 +28,7 @@ use "Y:\agrajg\Research\Data\RawAIRDNA_dta_data\MSANewYorkNewarkJerseyCityNYNJPA
 gen datasetnum = 2 
 
 * ==============================================================================
-append using "Y:\agrajg\Research\Data\temp\Boroughs_Property_201604_datasetnum.dta" 
+append using "Y:\agrajg\Research\Data\temp\000102_Boroughs_Property_201604_datasetnum.dta" 
 * ==============================================================================
 
 label variable datasetnum "Data Set Number"
@@ -61,24 +62,41 @@ replace `var' = trim(`var')
 format `var' %20s
 }
 order listingtitle, after(longitude)
-********************************************************************************
+
+/*******************************************************************************
 ******** SAVING A COPY OF DIRTY DATA *******************************************
 	preserve
-	keep if propertyid==.
-
+	keep if 	(propertyid==.) 																			///
+			| 	(listingtype =="" & neighborhood =="" & propertytype =="" & latitude ==.& longitude  ==.) 	///
+			| 	(latitude ==. | longitude ==.)																///
 	* ==============================================================================
-	save "Y:\agrajg\Research\Data\FinalData\AIRDNA_listings_dta_dirty.dta", replace
+	save "Y:\agrajg\Research\Data\temp\000102_AIRDNA_listings_dta_dirty.dta", replace
 	* ==============================================================================
 	
-	restore
-******** MOVING ON WITH CLEAN DATA
+	restore	
+*/
+******** MOVING ON WITH CLEAN DATA *********************************************
+********************************************************************************
 drop if propertyid==.
+drop if latitude ==. 
+drop if longitude ==.
+drop if longitude <-80
+drop if longitude >-70
+replace 	state = "New York" if state == "Arizona" /// 
+			| state == "District of Columbia" 	| state == "Florida" /// 
+			| state == "Illinois" 				| state == "Maryland" /// 
+			| state == "Oklahoma"
+********************************************************************************
+
+/*
 ********************************************************************************
 ************FILLING IN NEIGHBOURHOOD USING COORDINATES**************************
 ******************NEAREST COORDINATE AVAILABLE *********************************
 *** SEARCHING THE KNOWN NEIGHBOURHOOD COORDINATE AND THEN ASSIGNING THE ********
 *** SAME NEIGHBOURHOOD AS THE CLOSETS COORDINATE *******************************
 ********************************************************************************
+**** Matched neighborhood created. This portion of code is locked out because 
+**** it takes a lot of time (a day or 2). No need to run this all the time
 preserve
 * all properties that have a defined neighborhood 
 keep if neighborhood !=""
@@ -86,7 +104,7 @@ contract propertyid neighborhood latitude longitude
 gen dist =.
 
 * ==============================================================================
-save "Y:\agrajg\Research\Data\temp\has_neighbourhood_listings.dta", replace
+save "Y:\agrajg\Research\Data\temp\000102_has_neighbourhood_listings.dta", replace
 * ==============================================================================
 
 restore 
@@ -97,7 +115,7 @@ keep if neighborhood ==""
 contract propertyid neighborhood latitude longitude 
 
 * ==============================================================================
-save "Y:\agrajg\Research\Data\temp\no_neighbourhood_listings.dta", replace
+save "Y:\agrajg\Research\Data\temp\000102_no_neighbourhood_listings.dta", replace
 * ==============================================================================
 
 restore 
@@ -113,7 +131,7 @@ g closest_neighborhood = ""
 g closest_propertyid= .
 
 * ==============================================================================
-save "Y:\agrajg\Research\Data\temp\matched_neighbourhood.dta", replace
+save "Y:\agrajg\Research\Data\temp\000102_matched_neighbourhood.dta", replace
 * ==============================================================================
 
 restore
@@ -130,15 +148,16 @@ g closest_propertyid= .
 set obs 1
 
 * ==============================================================================
-save "Y:\agrajg\Research\Data\temp\matched_neighbourhood_test.dta", replace
+save "Y:\agrajg\Research\Data\temp\000102_matched_neighbourhood_test.dta", replace
 * ==============================================================================
 
 restore
 
+
 preserve
 
 * ==============================================================================
-use "Y:\agrajg\Research\Data\temp\no_neighbourhood_listings.dta", clear 
+use "Y:\agrajg\Research\Data\temp\000102_no_neighbourhood_listings.dta", clear 
 * ==============================================================================
 
 count
@@ -148,7 +167,7 @@ forvalues i = 1(1) $cnt {
 *local i = 1999
 
 * ==============================================================================
-use "Y:\agrajg\Research\Data\temp\no_neighbourhood_listings.dta", clear
+use "Y:\agrajg\Research\Data\temp\000102_no_neighbourhood_listings.dta", clear
 * ==============================================================================
 
 global search_lat  = latitude[`i'] 
@@ -156,7 +175,7 @@ global search_long = longitude[`i']
 global search_pid = propertyid[`i']
 
 * ==============================================================================
-use "Y:\agrajg\Research\Data\temp\has_neighbourhood_listings.dta", clear
+use "Y:\agrajg\Research\Data\temp\000102_has_neighbourhood_listings.dta", clear
 * ==============================================================================
 
 replace dist  = (latitude - $search_lat)^2 + (longitude - $search_long)^2
@@ -171,7 +190,7 @@ global closest_propertyid = propertyid[1]
 *macro list
 
 * ==============================================================================
-use "Y:\agrajg\Research\Data\temp\matched_neighbourhood_test.dta", clear
+use "Y:\agrajg\Research\Data\temp\000102_matched_neighbourhood_test.dta", clear
 * ==============================================================================
 
 replace search_lat = $search_lat
@@ -185,25 +204,23 @@ di `i'
 *di $closest_neighborhood
 
 * ==============================================================================
-save "Y:\agrajg\Research\Data\temp\matched_neighbourhood_test.dta", replace
+save "Y:\agrajg\Research\Data\temp\000102_matched_neighbourhood_test.dta", replace
 * ==============================================================================
 
 * ==============================================================================
-use "Y:\agrajg\Research\Data\temp\matched_neighbourhood.dta", clear
-append using "Y:\agrajg\Research\Data\temp\matched_neighbourhood_test.dta"
+use "Y:\agrajg\Research\Data\temp\000102_matched_neighbourhood.dta", clear
+append using "Y:\agrajg\Research\Data\temp\000102_matched_neighbourhood_test.dta"
 * ==============================================================================
 
 * ==============================================================================
-save "Y:\agrajg\Research\Data\temp\matched_neighbourhood.dta", replace
+save "Y:\agrajg\Research\Data\temp\000102_matched_neighbourhood.dta", replace
 * ==============================================================================
 
 }
-*erase Y:\agrajg\Research\Data\temp\matched_neighbourhood_test.dta
-*erase Y:\agrajg\Research\Data\temp\has_neighbourhood_listings.dta
-*erase Y:\agrajg\Research\Data\temp\no_neighbourhood_listings.dta
+
 
 * ==============================================================================
-use "Y:\agrajg\Research\Data\temp\matched_neighbourhood.dta", clear
+use "Y:\agrajg\Research\Data\temp\000102_matched_neighbourhood.dta", clear
 * ==============================================================================
 
 drop closest_lat closest_long closest_propertyid
@@ -212,33 +229,32 @@ rename search_long  longitude
 rename search_pid  propertyid 
 
 * ==============================================================================
-save "Y:\agrajg\Research\Data\temp\matched_neighbourhood.dta", replace
+save "Y:\agrajg\Research\Data\temp\000102_matched_neighbourhood.dta", replace
 * ==============================================================================
 
 restore
+**** Matched neighborhood created. This portion of code is locked out because 
+**** it takes a lot of time (a day or 2). No need to run this all the time
+*/
 
 * ==============================================================================
-merge m:1 propertyid latitude longitude using "Y:\agrajg\Research\Data\temp\matched_neighbourhood.dta", nogenerate
+merge m:1 propertyid latitude longitude using "Y:\agrajg\Research\Data\temp\000102_matched_neighbourhood.dta", nogenerate
 * ==============================================================================
 
 replace neighborhood = closest_neighborhood  if neighborhood==""
 drop closest_neighborhood
 
 * ==============================================================================
-save Y:\agrajg\Research\Data\temp\AIRDNAListingsWithCleanedNeighborhood.dta, replace
+save Y:\agrajg\Research\Data\temp\000102_AIRDNAListingsWithCleanedNeighborhood.dta, replace
 * ==============================================================================
 
-*erase "Y:\agrajg\Research\Data\temp\matched_neighbourhood.dta"
-********************************************************************************
-********************************************************************************
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
 
 * ==============================================================================
-use  Y:\agrajg\Research\Data\temp\AIRDNAListingsWithCleanedNeighborhood.dta, clear
+use  Y:\agrajg\Research\Data\temp\000102_AIRDNAListingsWithCleanedNeighborhood.dta, clear
 * ==============================================================================
-
 
 ********************************************************************************
 *** Dropping redundent variables
@@ -271,11 +287,12 @@ foreach var in  createddate lastscrapeddate {
 bys propertyid : replace createddate = createddate[_n-1] if createddate > createddate[_n-1]
 bys propertyid : replace createddate = createddate[_n+1] if createddate > createddate[_n+1]
 
-
+/*
+** The file is already created no need to run every time
 preserve
 	
 	* ==============================================================================
-	use "Y:\agrajg\Research\Data\FinalData\AIRDNA_market_data_clean_final.dta", clear
+	use "Y:\agrajg\Research\Data\temp\000103_AIRDNA_market_data_clean_final.dta", clear
 	* ==============================================================================
 	
 	*collapse (min) first_observed_date = date (count) count = date , by (propertyid status )
@@ -289,13 +306,13 @@ preserve
 	format %td first_observed_date last_observed_date
 	
 	* ==============================================================================
-	save "Y:\agrajg\Research\Data\temp\AIRDNA_market_earliestlatestdate.dta", replace 
+	save "Y:\agrajg\Research\Data\temp\000102_AIRDNA_market_earliestlatestdate.dta", replace 
 	* ==============================================================================
 
 restore
-
+*/
 * ==============================================================================
-merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\AIRDNA_market_earliestlatestdate.dta"
+merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\000102_AIRDNA_market_earliestlatestdate.dta"
 * ==============================================================================
 
 tab _merge
@@ -305,10 +322,9 @@ drop first_observed_date
 ******************************SCRAPEDATE CLEANING*******************************
 replace lastscrapeddate = last_observed_date if lastscrapeddate ==.
 drop last_observed_date
+********************************************************************************
 
 
-********************************************************************************
-********************************************************************************
 ********************************************************************************
 * Filling in the missing values
 egen missobs = rowmiss( propertyid - datasetnum )
@@ -332,6 +348,8 @@ duplicates list propertyid
 **** There should be none
 ********************************************************************************
 
+/*
+** The file is already created no need to run every time
 ********************************************************************************
 **************************** CLEANING HOST ID  *********************************
 ********************************************************************************
@@ -340,22 +358,23 @@ preserve
 *** the host id are missing for many properties, I have assumed that properties 
 *** without host id have unique host which holds only one property 
 * ==============================================================================
-use "Y:\agrajg\Research\Data\FinalData\MCOX_property_data_clean_final.dta" , clear
+use "Y:\agrajg\Research\Data\temp\000102_MCOX_property_data_clean_final.dta" , clear
 * ==============================================================================
 
 contract propertyid host_id
 drop _freq
 
 * ==============================================================================
-save "Y:\agrajg\Research\Data\temp\host_id_mcox.dta",replace
+save "Y:\agrajg\Research\Data\temp\000102_host_id_mcox.dta",replace
 * ==============================================================================
 
 restore
 
+
 preserve
 contract propertyid hostid
 drop _freq
-merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\host_id_mcox.dta"
+merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\000102_host_id_mcox.dta"
 
 gen temphostid = .
 replace temphostid = hostid if hostid != host_id & hostid !=. & host_id !=.
@@ -368,13 +387,15 @@ replace temphostid = _n + `r(max)' if temphostid==.
 keep propertyid temphostid
 
 * ==============================================================================
-save "Y:\agrajg\Research\Data\temp\host_id_all.dta",replace
+save "Y:\agrajg\Research\Data\temp\000102_host_id_all.dta",replace
 * ==============================================================================
 
 restore
+*/
+
 
 * ==============================================================================
-merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\host_id_all.dta"
+merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\000102_host_id_all.dta"
 * ==============================================================================
 
 replace hostid = temphostid if hostid ==.
@@ -387,6 +408,12 @@ drop _merge
 ********************************************************************************
 ***************************** When response id not observed ********************
 ********************************************************************************
+
+
+
+
+
+
 ********************************************************************************
 ************************ STRING MISSING VALUES *********************************
 ***************************  REPLACE BY NA  ************************************
@@ -595,13 +622,12 @@ label var checkinperiod "Check-in flexible preiod"
 drop startcheckintime endcheckintime tempvar t1 t2 diff1
 *contract checkintime checkinperiod
 *br if checkintime =="NR"
+********************************************************************************
 
 
 ********************************************************************************
-********************************************************************************
-********************************************************************************
-
-*** Encoding all catagorical variables
+/*
+** Encoding all catagorical variables
 global CatVariables propertytype listingtype country state city zipcode neighborhood metropolitanstatisticalarea superhost cancellationpolicy checkintime checkouttime businessready instantbookenabled 
 foreach var in $CatVariables {
 	rename `var' temp`var'
@@ -609,7 +635,7 @@ foreach var in $CatVariables {
 	order `var', after(temp`var')
 	drop temp`var'
 }
-
+*/
 
 
 ********************************************************************************
@@ -620,10 +646,24 @@ format lastscrapeddate %td
 label var createddate "Date listing created"
 label var lastscrapeddate "Date when listing was last scraped"
 
+
+
+* Saving all data
+* ==============================================================================	
+	compress
+	save 					"Y:\agrajg\Research\Data\temp\000102_AIRDNA_listings_data_clean_final.dta", replace
+	export delimited using 	"Y:\agrajg\Research\Data\temp\000102_AIRDNA_listings_data_clean_final.csv", replace
+* ==============================================================================
+********************************************************************************
+* sampling 50 properties
+* ==============================================================================
+	do 						"Y:\agrajg\Research\Code\Stata\sample50properties_v11.do"
+	compress
+	save 					"Y:\agrajg\Research\Data\temp\000102_AIRDNA_listings_data_clean_final_sample50.dta", replace 
+	export delimited using 	"Y:\agrajg\Research\Data\temp\000102_AIRDNA_listings_data_clean_final_sample50.csv", replace
+* ==============================================================================
+
 *XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 *********************************** END ****************************************
 ********************** cleaning_AIRDNA_property_data.do ************************
 *XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
-
-

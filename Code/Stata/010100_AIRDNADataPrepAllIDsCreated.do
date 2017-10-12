@@ -13,7 +13,7 @@ set more off
 *** These IDs will be used through out this work and therefore I am creating them here, once and for all
 use "Y:\agrajg\Research\Data\FinalData\AIRDNA_listings_data_clean_final.dta", clear 
 keep propertyid hostid
-save "Y:\agrajg\Research\Data\temp\011_PropertyIDHostIDKey.dta", replace
+save "Y:\agrajg\Research\Data\temp\010100_PropertyIDHostIDKey.dta", replace
 ********************************************************************************
 
 clear all 

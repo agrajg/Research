@@ -30,7 +30,7 @@ gen datasetnum = 1
 
 *Save to temporary data, will late use to check consistancy...
 * ==============================================================================
-save Y:\agrajg\Research\Data\temp\AIRDNA_market_data1.dta, replace
+save Y:\agrajg\Research\Data\temp\000103_AIRDNA_market_data1.dta, replace
 * ==============================================================================
 
 ********************************************************************************
@@ -54,7 +54,7 @@ duplicates drop
 gen datasetnum = 2
 
 * ==============================================================================
-save Y:\agrajg\Research\Data\temp\AIRDNA_market_data2.dta, replace
+save Y:\agrajg\Research\Data\temp\000103_AIRDNA_market_data2.dta, replace
 * ==============================================================================
 
 ********************************************************************************
@@ -63,8 +63,8 @@ save Y:\agrajg\Research\Data\temp\AIRDNA_market_data2.dta, replace
 clear all 
 
 * ==============================================================================
-use Y:\agrajg\Research\Data\temp\AIRDNA_market_data2.dta, clear
-append using Y:\agrajg\Research\Data\temp\AIRDNA_market_data1.dta
+use Y:\agrajg\Research\Data\temp\000103_AIRDNA_market_data2.dta, clear
+append using Y:\agrajg\Research\Data\temp\000103_AIRDNA_market_data1.dta
 * ==============================================================================
 
 duplicates drop
@@ -106,12 +106,15 @@ replace status = status2 if status==""
 gen price = price2 if price2 == price1 | price1==.
 replace price = price2 if price ==. & price1 ==.
 replace price = price1 if price ==. & price2 ==.
+replace price = price2 if price ==.
+
 *count if price ==. & (price1==. | price2 ==.)
 * The only conflict is difference of price between 2 datasets. All missing 
 * prices have been taken care of
 * CONFLICT IN PRICE
 * price for blocked status does not matter. 
 * one possibility is to pick a price closer to mean of the rest
+/*
 gen year = year(date)
 gen month = month(date)
 bys propertyid status year month: egen meanprice = mean(price)
@@ -120,6 +123,8 @@ replace price = price1 if price==. & abs(price1 - meanprice) < abs(price2 - mean
 count if price ==.
 replace price = price2 if price==.
 count if price ==.
+*/
+
 
 ********************************************************************************
 *******************************RESERVATION ID***********************************
@@ -166,7 +171,13 @@ count if price ==.
 count if (reservationid==. & reservationidalt==. ) & (reservationid1 !=. | reservationid2!=.)
 count if (bookeddate==. & bookeddatealt==.) & (bookeddate1 !=. | bookeddate2 !=.) 
 
-drop *1 *2 meanprice year month
+capture drop meanprice
+capture drop year
+capture drop month
+
+capture drop *1 
+capture drop *2
+   
 label var status "Daily status"
 label var price "Price (per night)"
 label var reservationid "Reservation ID"
@@ -187,26 +198,67 @@ format bookeddatealt %td
 preserve
 
 * ==============================================================================
-use "Y:\agrajg\Research\Data\FinalData\AIRDNA_listings_data_clean_final.dta", clear
+use "Y:\agrajg\Research\Data\temp\000102_AIRDNA_listings_data_clean_final.dta", clear
 * ==============================================================================
 
 keep propertyid createddate
 
 * ==============================================================================
-save "Y:\agrajg\Research\Data\temp\AIRDNAcreatedate.dta", replace
+save "Y:\agrajg\Research\Data\temp\000103_AIRDNAcreatedate.dta", replace
 * ==============================================================================
 
 restore
 
 * ==============================================================================
-merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\AIRDNAcreatedate.dta"
+merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\000103_AIRDNAcreatedate.dta"
 * ==============================================================================
 
 drop if _merge ==2
 drop _merge
 keep if date >= createddate
 drop createddate
+
 ********************************************************************************
+********************************************************************************
+*saving all data
+********************************************************************************
+
+* ==============================================================================
+compress
+save 					"Y:\agrajg\Research\Data\temp\000103_AIRDNA_market_data_clean_final.dta", replace 
+export delimited using 	"Y:\agrajg\Research\Data\temp\000103_AIRDNA_market_data_clean_final.csv", replace
+* ==============================================================================
+
+*sampling 50 properties
+
+* ==============================================================================
+preserve
+do 						"Y:\agrajg\Research\Code\Stata\sample50properties_v11.do"
+compress
+save 					"Y:\agrajg\Research\Data\temp\000103_AIRDNA_market_data_clean_final_sample50.dta", replace 
+export delimited using 	"Y:\agrajg\Research\Data\temp\000103_AIRDNA_market_data_clean_final_sample50.csv", replace
+restore
+* ==============================================================================
+
+* ==============================================================================
+preserve
+drop if status=="B"
+compress
+save 					"Y:\agrajg\Research\Data\temp\000103_AIRDNA_market_data_clean_final_BlockedDropped.dta", replace 
+export delimited using 	"Y:\agrajg\Research\Data\temp\000103_AIRDNA_market_data_clean_final_BlockedDropped.csv", replace
+restore
+* ==============================================================================
+
+* ==============================================================================
+preserve
+keep if status=="A"
+compress
+save 					"Y:\agrajg\Research\Data\temp\000103_AIRDNA_market_data_clean_final_OnlyBooked.dta", replace 
+export delimited using 	"Y:\agrajg\Research\Data\temp\000103_AIRDNA_market_data_clean_final_OnlyBooked.csv", replace
+restore
+* ==============================================================================
+
+
 *XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 *********************************** END ****************************************
 ********************** cleaning_AIRDNA_market_data.do **************************
