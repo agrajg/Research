@@ -1,31 +1,148 @@
 clear all
 set more off
-use "Y:\agrajg\Research\Data\temp\010100_MarketDataAllIDsBlockedDropped.dta", clear
-/*
-*-------------------------------------------------------------------------------
+*use "Y:\agrajg\Research\Data\temp\010208_MergedDataForPanelPriceQuantityRegression.dta", clear
+use "Y:\agrajg\Research\Data\temp\010208_MergedDataForPanelPriceQuantityRegressionBlockedDropped.dta", clear
+*===============================================================================
 preserve
-collapse (count) count_pid = pid ,by(date status)
-reshape wide count_pid  , i(date ) j(status ) s
-gen countmktprop = count_pidA  + count_pidR
-twoway 	(line countmktprop date, sort lcolor(dknavy) lwidth(medthick) lpattern(solid)) ///
-		(line count_pidR date, sort lcolor(red) lwidth(medthick) lpattern(dash)) ///
+collapse (count) pid ,by(date hid)
+collapse (count) counthid = hid (sum) countpid = pid , by (date )
+
+twoway (line counthid date, sort) (line countpid date, sort) ///
 		, ylabel(#12) ///
 		ymtick(##2, grid glpattern(dash)) ///
 		xline(20362 20423 20494 20748, lpattern(vshortdash)) ///
 		xlabel(#19, angle(forty_five) grid) ///
 		xmtick(, grid) ///
-		legend(order(1 "In Market" 2 "Booked") ///
+		legend(order(1 "Hosts" 2 "Properties" ) ///
+			title(Number of: ) ///
+			position(10) ///
+			ring(0)) ///
+		scheme(tufte) ///
+		scale(0.7)
+
+graph save Graph "Y:\agrajg\Research\Output\020102_PropertiesHostbyDate.gph", replace
+graph export "Y:\agrajg\Research\Output\020102_PropertiesHostbyDate.png" , width(2100) height(1500) replace
+graph export "T:\agrajg\Output\020102_PropertiesHostbyDate.png" , width(2100) height(1500) replace
+
+
+
+gen ratioPtoH = countpid/ counthid
+twoway (line ratioPtoH date, sort) ///
+		, ylabel(#12) ///
+		ymtick(##2, grid glpattern(dash)) ///
+		xline(20362 20423 20494 20748, lpattern(vshortdash)) ///
+		xlabel(#19, angle(forty_five) grid) ///
+		xmtick(, grid) ///
+		legend(order(1 "Properties to Hosts") ///
+			title(Ratio) ///
+			position(10) ///
+			ring(0)) ///
+		scheme(tufte) ///
+		scale(0.7)
+
+graph save Graph "Y:\agrajg\Research\Output\020102_PropertiesHostRatiobyDate.gph", replace
+graph export "Y:\agrajg\Research\Output\020102_PropertiesHostRatiobyDate.png" , width(2100) height(1500) replace
+graph export "T:\agrajg\Output\020102_PropertiesHostRatiobyDate.png" , width(2100) height(1500) replace
+
+restore
+/*===============================================================================
+preserve
+collapse (count) countpid = pid ,by(date status)
+replace countpid = 0 if countpid==.
+reshape wide countpid  , i(date ) j(status ) s
+gen countmktprop = countpidA  + countpidR
+label var countmktprop "Number of active properties in market"
+gen fracB = countpidR /countmktprop 
+label var fracB "Fraction of active properties booked"
+gen policychangedum = (date >=td(01oct2015))
+merge 1:1 date using "Y:\agrajg\Research\Data\Seasonals\seasonals_01aug2014to31mar2017.dta" 
+drop _merge
+
+
+
+capture drop yeardum*
+capture drop tid
+capture drop t*
+capture drop *_res
+capture drop *_pred
+
+*tab year, generate(yeardum)
+
+*egen tid = group(date)
+*orthpoly tid, generate(t*) degree(7)
+
+global SEASONAL1 year i.moy i.dow i.holiday i.wom2 i.holidaywom2
+*global SEASONAL1 t* i.dow i.holiday i.wom2 i.holidaywom2
+
+* Deseasonalizing 
+foreach var of varlist  count* frac*   {
+gen y = `var'
+*-------------------------------------------------------------------------------
+reg y $SEASONAL1 if policychangedum ==0
+predict yhat if policychangedum ==1
+gen uhat = y-yhat
+*-------------------------------------------------------------------------------
+gen `var'_pred = yhat
+gen `var'_res = uhat
+drop y yhat uhat
+}
+*-------------------------------------------------------------------------------
+twoway 	(line countmktprop date, sort lcolor(red) lwidth(medium) lpattern(solid)) ///
+		(line countmktprop_pred date, sort lcolor(red) lwidth(thin) lpattern(dash)) ///
+		(line countpidR date, sort lcolor(dknavy) lwidth(medium) lpattern(solid)) ///
+		(line countpidR_pred date, sort lcolor(dknavy) lwidth(thin) lpattern(dash)) ///
+		, ylabel(#12) ///
+		ymtick(##2, grid glpattern(dash)) ///
+		xline(20362 20423 20494 20748, lpattern(vshortdash)) ///
+		xlabel(#19, angle(forty_five) grid) ///
+		xmtick(, grid) ///
+		legend(order(1 "In Market(Actual)" 2 "In Market(Predicted)" 3 "Booked(Actual)" 4 "Booked(Predicted)") ///
 			title(Number of properties) ///
 			position(10) ///
 			ring(0)) ///
 		scheme(tufte) ///
 		scale(0.7)
+		
 graph save Graph "Y:\agrajg\Research\Output\020102_PropertiesbyDateStatus.gph", replace
 graph export "Y:\agrajg\Research\Output\020102_PropertiesbyDateStatus.png" , width(2100) height(1500) replace
 graph export "T:\agrajg\Output\020102_PropertiesbyDateStatus.png" , width(2100) height(1500) replace
-restore
 *-------------------------------------------------------------------------------
-*/
+
+
+twoway 	(line fracB date, sort lcolor(dknavy) lwidth(medium) lpattern(solid)) ///
+		(line fracB_pred date, sort lcolor(dknavy) lwidth(thin) lpattern(dash)) ///
+		, ylabel(#12) ///
+		ymtick(##2, grid glpattern(dash)) ///
+		xline(20362 20423 20494 20748, lpattern(vshortdash)) ///
+		xlabel(#19, angle(forty_five) grid) ///
+		xmtick(, grid) ///
+		legend(order(1 "Actual" 2 "Predicted") ///
+			title(Fraction of properties booked) ///
+			position(10) ///
+			ring(0)) ///
+		scheme(tufte) ///
+		scale(0.7)
+restore
+*===============================================================================
+/*
+foreach var of varlist  countpid* frac*    {
+gen y = `var'
+*-------------------------------------------------------------------------------
+global SEASONAL i.year i.moy i.dow i.holiday i.wom2 i.holidaywom2
+reg y $SEASONAL 
+predict yhat 
+gen uhat = y-yhat
+*-------------------------------------------------------------------------------
+gen `var'_res = uhat
+drop y yhat uhat
+}
+
+
+
+
+
+
+*-------------------------------------------------------------------------------
 
 preserve
 collapse (count)tid , by(pid hid gid)
@@ -39,10 +156,50 @@ restore
 *-------------------------------------------------------------------------------
 
 
+preserve
+collapse (count) countpid = pid, by (date listingtype)
+encode listingtype ,gen(ltypecat)
+drop listingtype
+tab ltypecat
+reshape wide countpid  , i(date ) j(ltypecat )
+foreach var of varlist  countpid*    {
+replace `var' = 0 if `var'==.
+}
+twoway (line countpid1 date, sort) (line countpid2 date, sort) (line countpid3 date, sort) (line countpid4 date, sort), legend(order(1 "Entire home/apt" 2 "NR" 3 "Private room" 4 "Shared room"))
+restore
+*/
 
 
 
 merge 1:1 date using "Y:\agrajg\Research\Data\Seasonals\seasonals_01aug2014to31mar2017.dta" 
+foreach var of varlist  countpid* ratio*    {
+gen y = `var'
+*-------------------------------------------------------------------------------
+global SEASONAL i.year i.moy i.dow i.holiday i.wom2 i.holidaywom2
+reg y $SEASONAL 
+predict yhat 
+gen uhat = y-yhat
+*-------------------------------------------------------------------------------
+gen `var'_res = uhat
+drop y yhat uhat
+}
+
+twoway (line countpid1_res date, sort) (line countpid2_res date, sort) (line countpid3_res date, sort) (line countpid4_res date, sort), legend(order(1 "Entire home/apt" 2 "NR" 3 "Private room" 4 "Shared room"))
+
+
+
+gen y = countmktprop
+*-------------------------------------------------------------------------------
+global SEASONAL i.year i.moy i.dow i.holiday i.wom2 i.holidaywom2
+reg y $SEASONAL 
+predict yhat 
+gen uhat = y-yhat
+*-------------------------------------------------------------------------------
+gen countmktprop_res = uhat
+drop y yhat uhat
+
+
+
 
 
 gen y = countmktprop
@@ -55,17 +212,17 @@ drop y yhat uhat
 
 
 
-gen y = count_pidR
+gen y = countpidR
 global SEASONAL i.year i.moy i.dow i.holiday i.wom2 i.holidaywom2
 reg y $SEASONAL 
 predict yhat 
 gen uhat = y-yhat
-gen count_pidR_res = uhat
+gen countpidR_res = uhat
 drop y yhat uhat
 
 
 twoway 	(line countmktprop_res date, sort lcolor(dknavy) lwidth(medium) lpattern(solid)) ///
-		(line count_pidR_res date, sort lcolor(red) lwidth(medthick) lpattern(dash)) ///
+		(line countpidR_res date, sort lcolor(red) lwidth(medthick) lpattern(dash)) ///
 		, ylabel(#12) ///
 		ymtick(##2, grid glpattern(dash)) ///
 		xline(20362 20423 20494 20748, lpattern(vshortdash)) ///
@@ -88,10 +245,10 @@ replace tempvar 	= "Period 4 : Post Law Enforcement" 	if date >= td(1nov2016)
 encode tempvar, generate(event)
 drop tempvar
 
-twoway 	(scatter count_pidR_res countmktprop_res if event ==1, sort mcolor(mint) msize(small) msymbol(circle))  ///
-		(scatter count_pidR_res countmktprop_res if event==2, sort mcolor(black) msize(medium) msymbol(triangle_hollow))  ///
-		(scatter count_pidR_res countmktprop_res if event==3, sort mcolor(ltblue) msize(small) msymbol(square))  ///
-		(scatter count_pidR_res countmktprop_res if event==4, sort mcolor(dknavy) msize(medium) msymbol(plus)),  ///
+twoway 	(scatter countpidR_res countmktprop_res if event ==1, sort mcolor(mint) msize(small) msymbol(circle))  ///
+		(scatter countpidR_res countmktprop_res if event==2, sort mcolor(black) msize(medium) msymbol(triangle_hollow))  ///
+		(scatter countpidR_res countmktprop_res if event==3, sort mcolor(ltblue) msize(small) msymbol(square))  ///
+		(scatter countpidR_res countmktprop_res if event==4, sort mcolor(dknavy) msize(medium) msymbol(plus)),  ///
 		ytitle(Number of Properties Booked)  ///
 		ylabel(#16, grid) xtitle(Total Number of Properties in Market)  ///
 		xlabel(#15, grid)  ///

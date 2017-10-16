@@ -1,4 +1,4 @@
-
+* setting up data for regressions
 clear all 
 set more off 
 
@@ -6,6 +6,7 @@ set more off
 use "Y:\agrajg\Research\Data\temp\010100_MarketDataAllIDsBlockedDropped.dta" 
 merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\000102_AIRDNA_listings_data_clean_final.dta"
 
+*"Y:\agrajg\Research\Data\temp\000102_AIRDNA_listings_Create_date.dta"
 
 keep if _merge ==3
 drop _merge
@@ -113,9 +114,18 @@ rename tempvar SRHostClass1
 
 
 
+** Encoding all catagorical variables
+global CatVariables propertytype listingtype country state city zipcode neighborhood metropolitanstatisticalarea superhost cancellationpolicy checkintime checkouttime businessready instantbookenabled 
+foreach var in $CatVariables {
+	rename `var' temp`var'
+	encode temp`var', generate(`var')
+	order `var', after(temp`var')
+	drop temp`var'
+}
+
 
 tsset propertyid date, daily
-save "Y:\agrajg\Research\Data\temp\010208_MergedDataForPanelPriceQuantityRegression.dta", replace
+save "Y:\agrajg\Research\Data\temp\010208_MergedDataForPanelPriceQuantityRegressionBlockedDropped.dta", replace
 
 *===============================================================================
 

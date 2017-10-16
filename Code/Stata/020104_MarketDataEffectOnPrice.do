@@ -1,10 +1,27 @@
 clear all
 set more off
 *-------------------------------------------------------------------------------
-use "Y:\agrajg\Research\Data\temp\010208_MergedDataForPanelPriceQuantityRegression.dta", clear
+use "Y:\agrajg\Research\Data\temp\010208_MergedDataForPanelPriceQuantityRegressionBlockedDropped.dta", clear
 tsset propertyid date, daily
 *-------------------------------------------------------------------------------
-*-------------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+gen age = date - createddate
+label var age "Age of listing in Airbnb"
+
+reg price i.propertytype i.listingtype age i.state i.neighborhood bedrooms bathrooms maxguests i.cancellationpolicy securitydeposit cleaningfee extrapeoplefee i.checkintime checkinperiod i.checkouttime i.minimumstay year i.moy i.dow i.wom2 i.holiday i.holidaywom2 if date < td(01oct2015)
+
+
+capture drop yhat*
+
+
+xtreg lprice i.year i.moy i.dow i.wom2 i.holiday i.holidaywom2 if date < td(01oct2015), fe
+predict yhat1
+xtreg lprice i.year i.moy i.dow i.wom2 i.holiday i.holidaywom2 if date >= td(01oct2015), fe
+predict yhat2 if date >= td(01oct2015) 
+twoway (line yhat1 date, sort) if pid==22784
+
+
+
 *** Price
 xtreg lprice i.event 									i.year i.moy i.dow i.wom2 i.holiday i.holidaywom2, fe vce(robust)
 est store AllHostsA

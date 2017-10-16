@@ -654,6 +654,12 @@ label var lastscrapeddate "Date when listing was last scraped"
 	save 					"Y:\agrajg\Research\Data\temp\000102_AIRDNA_listings_data_clean_final.dta", replace
 	export delimited using 	"Y:\agrajg\Research\Data\temp\000102_AIRDNA_listings_data_clean_final.csv", replace
 * ==============================================================================
+
+preserve
+keep propertyid createddate
+save "Y:\agrajg\Research\Data\temp\000102_AIRDNA_listings_Create_date.dta", replace
+
+restore
 ********************************************************************************
 * sampling 50 properties
 * ==============================================================================
