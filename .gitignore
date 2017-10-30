@@ -23,6 +23,8 @@
 *.pdf
 *.spark.*
 *metastore_db*
+*.ster
+*.tex
 
 # #################################################################################################
 # .gitignore file for git projects containing Stata files

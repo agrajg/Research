@@ -1,8 +1,36 @@
+set more off
 clear all
 set more off
-*use "Y:\agrajg\Research\Data\temp\010208_MergedDataForPanelPriceQuantityRegression.dta", clear
+*-------------------------------------------------------------------------------
+use "Y:\agrajg\Research\Data\temp\010208_PanelWithTimeVaryingCharAndSeasonalsBlockedDropped.dta" , clear
+*** Section - Newyork City Market
+preserve
+drop if date > td(01jan2015)
+collapse (count) date, by (propertyid hostid )
+format %9.0g date
+collapse (count) propertyid ,by(hostid)
+collapse (count)hostid (sum)propertyid
+restore
+preserve
+drop if date > td(01jan2016)
+collapse (count) date, by (propertyid hostid )
+format %9.0g date
+collapse (count) propertyid ,by(hostid)
+collapse (count)hostid (sum)propertyid
+restore
+preserve
+drop if date > td(01jan2017)
+collapse (count) date, by (propertyid hostid )
+format %9.0g date
+collapse (count) propertyid ,by(hostid)
+collapse (count)hostid (sum)propertyid
+restore
+********************************************************************************
+
+
+/*===============================================================================
+clear all
 use "Y:\agrajg\Research\Data\temp\010208_MergedDataForPanelPriceQuantityRegressionBlockedDropped.dta", clear
-*===============================================================================
 preserve
 collapse (count) pid ,by(date hid)
 collapse (count) counthid = hid (sum) countpid = pid , by (date )
@@ -45,6 +73,33 @@ graph export "Y:\agrajg\Research\Output\020102_PropertiesHostRatiobyDate.png" , 
 graph export "T:\agrajg\Output\020102_PropertiesHostRatiobyDate.png" , width(2100) height(1500) replace
 
 restore
+*/===============================================================================
+
+
+clear all
+set more off
+*-------------------------------------------------------------------------------
+use "Y:\agrajg\Research\Data\temp\010208_PanelWithTimeVaryingCharAndSeasonalsOnlyBooked.dta", clear
+tsset propertyid date, daily
+preserve
+collapse (count) Days_booked= date , by (hostid propertyid reservationid bookeddate)
+format %9.0g Days_booked
+histogram Days_booked, discrete width(1) frequency addlabel addlabopts(mlabsize(vsmall) mlabangle(vertical) mlabgap(5)) ylabel(#11, angle(horizontal) grid) xtitle(Days booked per consumer) xlabel(#11, angle(horizontal) grid) scheme(tufte) scale(0.8)
+graph save Graph "Y:\agrajg\Research\Output\020102_HistDaysPerBooking.gph", replace
+graph export "Y:\agrajg\Research\Output\020102_HistDaysPerBooking.png" , width(2100) height(1500) replace
+graph export "T:\agrajg\Output\020102_HistDaysPerBooking.png" , width(2100) height(1500) replace
+restore
+
+preserve
+collapse (min) FirstStayDate= date  , by (hostid propertyid reservationid bookeddate)
+gen DaysAdv = FirstStayDate - bookeddate
+replace DaysAdv = 0 if DaysAdv <0
+histogram DaysAdv, discrete width(7) frequency addlabel addlabopts(mlabsize(vsmall) mlabangle(vertical) mlabgap(5)) ylabel(#11, angle(horizontal) grid) xtitle(Days prior to stay) xlabel(#11, angle(horizontal) grid) scheme(tufte) scale(0.8)
+graph save Graph "Y:\agrajg\Research\Output\020102_AdvBooking.gph", replace
+graph export "Y:\agrajg\Research\Output\020102_AdvBooking.png" , width(2100) height(1500) replace
+graph export "T:\agrajg\Output\020102_AdvBooking.png" , width(2100) height(1500) replace
+restore
+
 /*===============================================================================
 preserve
 collapse (count) countpid = pid ,by(date status)

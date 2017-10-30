@@ -1,11 +1,97 @@
 * setting up data for regressions
 clear all 
 set more off 
+*-------------------------------------------------------------------------------
+use "Y:\agrajg\Research\Data\temp\010100_MarketDataAllIDs.dta", clear
+merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\000102_AIRDNA_listings_Create_date.dta"
+keep if _merge ==3
+drop _merge
+*-------------------------------------------------------------------------------
+order hostid propertyid date reservationid bookeddate
+*-------------------------------------------------------------------------------
+* Time varying characteristics
+* Counting numer of guest in the past
+sort hostid propertyid reservationid bookeddate date
+by hostid propertyid reservationid bookeddate : gen temp1 = 1 if _n ==1 & reservationid !=. & bookeddate!=.
+gen temp2 = temp1
+sort hostid propertyid date reservationid bookeddate
+by hostid propertyid :replace temp2 = sum(temp2 )
+gen temp3 = temp2 - 1 if reservationid !=. & bookeddate!=.
+replace temp3 = temp2
+replace temp3 = temp2 - 1 if reservationid !=. & bookeddate!=.
+gen PropGuestPastCount = temp3
+label var PropGuestPastCount "(Count)guests stayed in property"
+drop temp*
 
+sort hostid date propertyid reservationid bookeddate 
+by hostid date: egen  HostGuestPastCount = sum(PropGuestPastCount)
+label var HostGuestPastCount "(Count)guests stayed with host"
+*-------------------------------------------------------------------------------
+*Counting how the property has been used in Airbnb so far(also by host)
+sort hostid propertyid date reservationid bookeddate 
+by hostid propertyid: gen 		PropASCount = 0 if _n ==1
+by hostid propertyid: replace   PropASCount = PropASCount[_n-1] + sdum1 if _n > 1
+label var PropASCount "(Count)Past Available days of property"
 
-use "Y:\agrajg\Research\Data\temp\010100_MarketDataAllIDsBlockedDropped.dta" 
+by hostid propertyid: gen 		PropBSCount = 0 if _n ==1
+by hostid propertyid: replace   PropBSCount = PropBSCount[_n-1] + sdum2 if _n > 1
+label var PropBSCount "(Count)Past Blocked days of property"
+
+by hostid propertyid: gen 		PropRSCount = 0 if _n ==1
+by hostid propertyid: replace   PropRSCount = PropRSCount[_n-1] + sdum3 if _n > 1
+label var PropRSCount "(Count)Past Reserved days of property"
+
+sort hostid date propertyid  reservationid bookeddate 
+by hostid date : egen   HostASCount = sum(PropASCount)
+by hostid date : egen   HostBSCount = sum(PropBSCount)
+by hostid date : egen   HostRSCount = sum(PropRSCount)
+label var HostASCount "(Count)Past Available days of Host"
+label var HostBSCount "(Count)Past Blocked days of Host"
+label var HostRSCount "(Count)Past Reserved days of Host"
+*-------------------------------------------------------------------------------
+* Age and combined age 
+gen PropAge = date - createddate
+label var PropAge "Age of Property on Airbnb"
+
+by hostid date : egen HostAge = max(PropAge)
+label var HostAge "Age of Host on Airbnb"
+
+by hostid date : egen CombinedHostAge = sum(PropAge)
+label var CombinedHostAge "Combined Age of Host on Airbnb"
+*-------------------------------------------------------------------------------
+merge m:1 date using "Y:\agrajg\Research\Data\Seasonals\seasonals_01aug2014to31mar2017.dta"
+preserve
+keep if _merge ==3
+drop _merge
+tsset propertyid date, daily
+save "Y:\agrajg\Research\Data\temp\010208_PanelWithTimeVaryingCharAndSeasonals.dta", replace
+export delimited using "Y:\agrajg\Research\Data\temp\010208_PanelWithTimeVaryingCharAndSeasonals.csv", replace
+drop if status == "B"
+save "Y:\agrajg\Research\Data\temp\010208_PanelWithTimeVaryingCharAndSeasonalsBlockedDropped.dta", replace
+export delimited using "Y:\agrajg\Research\Data\temp\010208_PanelWithTimeVaryingCharAndSeasonalsBlockedDropped.csv", replace
+drop if status == "A"
+save "Y:\agrajg\Research\Data\temp\010208_PanelWithTimeVaryingCharAndSeasonalsOnlyBooked.dta", replace
+export delimited using "Y:\agrajg\Research\Data\temp\010208_PanelWithTimeVaryingCharAndSeasonalsOnlyBooked.csv", replace
+restore
+*-------------------------------------------------------------------------------
+capture drop _merge
 merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\000102_AIRDNA_listings_data_clean_final.dta"
+keep if _merge ==3
+drop _merge
+drop if latitude ==. | longitude ==.
+*-------------------------------------------------------------------------------
+save "Y:\agrajg\Research\Data\temp\010208_MergedPanelWithTimeVaryingCharAndSeasonals.dta", replace
+export delimited using "Y:\agrajg\Research\Data\temp\010208_MergedPanelWithTimeVaryingCharAndSeasonals.csv", replace
+drop if status == "B"
+save "Y:\agrajg\Research\Data\temp\010208_MergedPanelWithTimeVaryingCharAndSeasonalsBlockedDropped.dta", replace
+export delimited using "Y:\agrajg\Research\Data\temp\010208_MergedPanelWithTimeVaryingCharAndSeasonalsBlockedDropped.csv", replace
+drop if status == "A"
+save "Y:\agrajg\Research\Data\temp\010208_MergedPanelWithTimeVaryingCharAndSeasonalsOnlyBooked.dta", replace
+export delimited using "Y:\agrajg\Research\Data\temp\010208_MergedPanelWithTimeVaryingCharAndSeasonalsOnlyBooked.csv", replace
+*-------------------------------------------------------------------------------
+/*
 
+*merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\000102_AIRDNA_listings_data_clean_final.dta"
 *"Y:\agrajg\Research\Data\temp\000102_AIRDNA_listings_Create_date.dta"
 
 keep if _merge ==3
