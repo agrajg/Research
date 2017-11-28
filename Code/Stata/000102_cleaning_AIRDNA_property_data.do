@@ -658,7 +658,10 @@ label var lastscrapeddate "Date when listing was last scraped"
 preserve
 keep propertyid createddate
 save "Y:\agrajg\Research\Data\temp\000102_AIRDNA_listings_Create_date.dta", replace
-
+restore
+preserve
+keep propertyid listingtype
+save "Y:\agrajg\Research\Data\temp\000102_AIRDNA_listingtype.dta", replace
 restore
 ********************************************************************************
 * sampling 50 properties
