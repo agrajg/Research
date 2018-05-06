@@ -153,6 +153,23 @@ save "Y:\agrajg\Research\Data\temp\010209_H_HostType2Active.dta", replace
 restore
 *-------------------------------------------------------------------------------
 
+preserve
+drop if status =="B"
+collapse (count) count_propertyid = propertyid , by(hostid date )
+collapse (min) min_count_propertyid =count_propertyid  (max) max_count_propertyid = count_propertyid , by(hostid )
+gen tempvar = "Group 1" if (max_count_propertyid==1)
+replace tempvar = "Group 2" if (max_count_propertyid==2 | max_count_propertyid==3)
+replace tempvar = "Group 3" if (max_count_propertyid==4 | max_count_propertyid==5)
+replace tempvar = "Group 4" if (max_count_propertyid>=6 & max_count_propertyid<=10)
+replace tempvar = "Group 5" if (max_count_propertyid>10)
+encode tempvar, generate(HostType3Active)
+drop tempvar
+drop min_count_propertyid max_count_propertyid
+rename HostType3Active H_HostType3Active
+label var H_HostType3Active "Host type Active based on max listings"
+save "Y:\agrajg\Research\Data\temp\010209_H_HostType3Active.dta", replace
+restore
+
 *-------------------------------------------------------------------------------
 * Number of entire homes , private rooms ... etc
 * Number of active ent homes private rooms

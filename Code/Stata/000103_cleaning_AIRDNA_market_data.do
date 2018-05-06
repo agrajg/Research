@@ -164,6 +164,13 @@ replace status = "B" if status == "R" & bookeddate==.
 * If there is a reservation there should be a reservationid and booked date
 count if status == "R" & (reservationid==. | bookeddate ==. )
 ********************************************************************************
+*Prices
+sort propertyid date
+by propertyid : egen p75_price = pctile(price) , p(75)
+gen permaxdiff75 = (price- p75_price)/ p75_price
+drop if permaxdiff75 > 50
+drop p75_price permaxdiff75
+********************************************************************************
 
 * checks 
 count if status =="" 

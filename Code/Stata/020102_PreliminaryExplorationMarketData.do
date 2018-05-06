@@ -2,30 +2,286 @@ set more off
 clear all
 set more off
 *-------------------------------------------------------------------------------
-use "Y:\agrajg\Research\Data\temp\010208_PanelWithTimeVaryingCharAndSeasonalsBlockedDropped.dta" , clear
-*** Section - Newyork City Market
-preserve
-drop if date > td(01jan2015)
-collapse (count) date, by (propertyid hostid )
-format %9.0g date
-collapse (count) propertyid ,by(hostid)
-collapse (count)hostid (sum)propertyid
-restore
-preserve
-drop if date > td(01jan2016)
-collapse (count) date, by (propertyid hostid )
-format %9.0g date
-collapse (count) propertyid ,by(hostid)
-collapse (count)hostid (sum)propertyid
-restore
-preserve
-drop if date > td(01jan2017)
-collapse (count) date, by (propertyid hostid )
-format %9.0g date
-collapse (count) propertyid ,by(hostid)
-collapse (count)hostid (sum)propertyid
-restore
+use "Y:\agrajg\Research\Data\temp\010100_MarketDataAllIDsBlockedDropped.dta" , clear
+// sort propertyid date
+// by propertyid : egen p75_price = pctile(price) , p(75)
+// gen permaxdiff75 = (price- p75_price)/ p75_price
+// drop if permaxdiff75 > 50
+// drop permaxdiff75 p75_price
+
+
+
+// *** Section - Newyork City Market
+// preserve
+// drop if date > td(01jan2015)
+// collapse (count) date, by (propertyid hostid )
+// format %9.0g date
+// collapse (count) propertyid ,by(hostid)
+// collapse (count)hostid (sum)propertyid
+// restore
+// preserve
+// drop if date > td(01jan2016)
+// collapse (count) date, by (propertyid hostid )
+// format %9.0g date
+// collapse (count) propertyid ,by(hostid)
+// collapse (count)hostid (sum)propertyid
+// restore
+// preserve
+// drop if date > td(01jan2017)
+// collapse (count) date, by (propertyid hostid )
+// format %9.0g date
+// collapse (count) propertyid ,by(hostid)
+// collapse (count)hostid (sum)propertyid
+// restore
 ********************************************************************************
+*-------------------------------------------------------------------------------
+preserve
+collapse (count) propertyid (sum)sdum3, by(hostid date)
+collapse (sum) propertyid (count) hostid (sum)sdum3, by (date)
+gen year = year(date)
+gen month = month(date)
+
+* Graph of listings hosts and reservations with time
+twoway (line propertyid date, sort) (line hostid date, sort) (line sdum3 date, sort lwidth(medthick) lpattern(longdash_dot)), ytitle(Count) ylabel(#9, angle(horizontal) grid) xtitle(Date) xline(20362 20423 20494 20748, lpattern(shortdash_dot)) xlabel(#18, angle(forty_five) grid) legend(order(1 "Listings" 2 "Hosts" 3 "Reservations")) scheme(tufte) scale(0.8)
+graph save Graph "Y:\agrajg\Research\Output\020102_ListingsHostsReservationsByDate.gph", replace
+graph export "Y:\agrajg\Research\Output\020102_ListingsHostsReservationsByDate.png" , width(2100) height(1500) replace
+graph export "T:\agrajg\Output\020102_ListingsHostsReservationsByDate.png" , width(2100) height(1500) replace
+
+gen hostperlisting = hostid / propertyid
+gen resperlisting = sdum3 /propertyid
+twoway (scatter resperlisting hostperlisting if year==2014, sort) (scatter resperlisting hostperlisting if year==2015, sort) (scatter resperlisting hostperlisting if year==2016, sort) (scatter resperlisting hostperlisting if year==2017, sort), legend(order(1 "2014" 2 "2015" 3 "2016" 4 "2017")) scheme(tufte) scale(0.5) by(month, iscale(*0.8))
+
+
+collapse 	(mean)mean_propertyid = propertyid ///
+			(sd) sd_propertyid= propertyid 	///
+			(mean)mean_hostid= hostid ///
+			(sd)sd_hostid= hostid /// 
+			(mean)mean_sdum3= sdum3 ///
+			(sd)sd_sdum3= sdum3 /// 
+			, by (year month)
+			
+generate MonthYear = ym(year, month)
+format %tmMon_CCYY MonthYear
+tostring MonthYear, replace force format(%tmMon_CCYY)
+label var year "Year"
+label var month "Month"
+label var MonthYear "Month Year"
+label var mean_propertyid "Mean listings"
+label var sd_propertyid "SD listings"
+label var mean_hostid "Mean hosts"
+label var sd_hostid "SD hosts"
+label var mean_sdum3 "Mean reservations"
+label var sd_sdum3 "SD reservations"
+
+keep MonthYear mean_propertyid sd_propertyid mean_hostid sd_hostid mean_sdum3 sd_sdum3
+order MonthYear mean_propertyid sd_propertyid mean_hostid sd_hostid mean_sdum3 sd_sdum3
+texsave using "T:\agrajg\Output\020102_HostListingReservationsMeanSdByYear.tex" , ///
+	title(Number of NYC hosts, listings and reservations) ///
+	size(3) ///
+	width(\textwidth) ///
+	align(XXCCCCCC) ///
+	location(p) ///
+	marker(020102_HostListingReservationsMeanSdByYear) ///
+	autonumber ///
+	footnote("Note: Year 2014 and 2017 figures are computed from last 5 months and first 3 months respectively of that year", size(2)) ///
+	varlabels ///
+	replace ///
+	headlines("\begin{center}") ///
+	footlines("\end{center}") ///
+	frag ///
+	hlines(5 17 29) ///
+	rowsep(0pt)
+	
+texsave using "Y:\agrajg\Research\Output\020102_HostListingReservationsMeanSdByYear.tex" , ///
+	title(Number of NYC hosts, listings and reservations) ///
+	size(3) ///
+	width(\textwidth) ///
+	align(XXCCCCCC) ///
+	location(p) ///
+	marker(020102_HostListingReservationsMeanSdByYear) ///
+	autonumber ///
+	footnote("Note: Year 2014 and 2017 figures are computed from last 5 months and first 3 months respectively of that year", size(2)) ///
+	varlabels ///
+	replace ///
+	headlines("\begin{center}") ///
+	footlines("\end{center}") ///
+	frag ///
+	hlines(5 17 29) ///
+	rowsep(0pt)
+restore
+*-------------------------------------------------------------------------------
+preserve
+merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\010213_L_listingtype.dta"
+drop if _merge ==2
+drop _merge
+tab L_listingtype , gen (ltype)
+keep propertyid hostid date sdum3 ltype*
+gen booked1= sdum3 *ltype1
+gen booked2= sdum3 *ltype2
+gen booked3= sdum3 *ltype3
+gen booked4= sdum3 *ltype4
+collapse (count) propertyid (sum) ltype1 ltype2 ltype3 ltype4 booked1 booked2 booked3 booked4 , by (date)
+gen frac1 = booked1 /ltype1
+gen frac2 = booked2 /ltype2
+gen frac3 = booked3 /ltype3
+gen frac4 = booked4 /ltype4
+twoway (line ltype1 date, sort) (line ltype3 date, sort) (line ltype4 date,  sort lwidth(medthick) lpattern(longdash_dot)), ytitle(Count) ylabel(#9, angle(horizontal) grid) xtitle(Date) xline(20362 20423 20494 20748, lpattern(shortdash_dot)) xlabel(#18, angle(forty_five) grid) legend(order(1 "Entire home and apartment" 2 "Private room" 3 "Shared room")) scheme(tufte) scale(0.8)
+graph save Graph "Y:\agrajg\Research\Output\020102_ListingtypeCountByDate.gph", replace
+graph export "Y:\agrajg\Research\Output\020102_ListingtypeCountByDate.png" , width(2100) height(1500) replace
+graph export "T:\agrajg\Output\020102_ListingtypeCountByDate.png" , width(2100) height(1500) replace
+restore
+*-------------------------------------------------------------------------------
+*-------------------------------------------------------------------------------
+clear all
+set more off
+*-------------------------------------------------------------------------------
+use "Y:\agrajg\Research\Data\temp\010100_MarketDataAllIDsBlockedDropped.dta" , clear
+merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\010213_L_listingtype.dta"
+drop if _merge ==2
+drop _merge
+preserve
+collapse (count)count_price = price  (mean)mean_price = price  (sd)sd_price = price  (min)min_price = price (p1) p1_price = price (p5) p5_price = price (p10) p10_price = price (p25) p25_price = price (p40) p40_price = price (p50) p50_price = price (p60) p60_price = price (p75) p75_price = price (p90) p90_price = price (p95) p95_price = price (p99) p99_price = price  (max)max_price = price  , by (date)
+serrbar mean_price sd_price date, recast(rline) lwidth(vvvthin) mvopts(recast(line)) ytitle(Mean Price) ylabel(#10, angle(horizontal) grid) xtitle(Date) xline(20362 20423 20494 20748, lpattern(shortdash_dot)) xlabel(#18, angle(forty_five) grid) xmtick(##2) legend(off) scheme(tufte) scale(1)
+graph save Graph "Y:\agrajg\Research\Output\020102_MeanPriceTimeAllsupplied.gph", replace
+graph export "Y:\agrajg\Research\Output\020102_MeanPriceTimeAllsupplied.png" , width(2100) height(1500) replace
+graph export "T:\agrajg\Output\020102_MeanPriceTimeAllsupplied.png" , width(2100) height(1500) replace
+restore
+preserve
+collapse (count)count_price = price  (mean)mean_price = price  (sd)sd_price = price  (min)min_price = price (p1) p1_price = price (p5) p5_price = price (p10) p10_price = price (p25) p25_price = price (p40) p40_price = price (p50) p50_price = price (p60) p60_price = price (p75) p75_price = price (p90) p90_price = price (p95) p95_price = price (p99) p99_price = price  (max)max_price = price  , by (date status)
+serrbar mean_price sd_price date if status =="A", recast(rline) lwidth(vvvthin) mvopts(recast(line)) ytitle(Mean Price) ylabel(#10, angle(horizontal) grid) xtitle(Date) xline(20362 20423 20494 20748, lpattern(shortdash_dot)) xlabel(#18, angle(forty_five) grid) xmtick(##2) legend(off) scheme(tufte) scale(1)
+graph save Graph "Y:\agrajg\Research\Output\020102_MeanPriceTimeAvailable.gph", replace
+graph export "Y:\agrajg\Research\Output\020102_MeanPriceTimeAvailable.png" , width(2100) height(1500) replace
+graph export "T:\agrajg\Output\020102_MeanPriceTimeAvailable.png" , width(2100) height(1500) replace
+serrbar mean_price sd_price date if status =="R", recast(rline) lwidth(vvvthin) mvopts(recast(line)) ytitle(Mean Price) ylabel(#10, angle(horizontal) grid) xtitle(Date) xline(20362 20423 20494 20748, lpattern(shortdash_dot)) xlabel(#18, angle(forty_five) grid) xmtick(##2) legend(off) scheme(tufte) scale(1)
+graph save Graph "Y:\agrajg\Research\Output\020102_MeanPriceTimeBooked.gph", replace
+graph export "Y:\agrajg\Research\Output\020102_MeanPriceTimeBooked.png" , width(2100) height(1500) replace
+graph export "T:\agrajg\Output\020102_MeanPriceTimeBooked.png" , width(2100) height(1500) replace
+restore
+preserve
+collapse (count)count_price = price  (mean)mean_price = price  (sd)sd_price = price  (min)min_price = price (p1) p1_price = price (p5) p5_price = price (p10) p10_price = price (p25) p25_price = price (p40) p40_price = price (p50) p50_price = price (p60) p60_price = price (p75) p75_price = price (p90) p90_price = price (p95) p95_price = price (p99) p99_price = price  (max)max_price = price  , by (date L_listingtype)
+serrbar mean_price sd_price date if L_listingtype==1, recast(rline) lwidth(vvvthin) mvopts(recast(line)) ytitle(Mean Price) ylabel(#10, angle(horizontal) grid) xtitle(Date) xline(20362 20423 20494 20748, lpattern(shortdash_dot)) xlabel(#18, angle(forty_five) grid) xmtick(##2) legend(off) scheme(tufte) scale(1)
+graph save Graph "Y:\agrajg\Research\Output\020102_MeanPriceTimeAllEH.gph", replace
+graph export "Y:\agrajg\Research\Output\020102_MeanPriceTimeAllEH.png" , width(2100) height(1500) replace
+graph export "T:\agrajg\Output\020102_MeanPriceTimeAllEH.png" , width(2100) height(1500) replace
+serrbar mean_price sd_price date if L_listingtype==3, recast(rline) lwidth(vvvthin) mvopts(recast(line)) ytitle(Mean Price) ylabel(#10, angle(horizontal) grid) xtitle(Date) xline(20362 20423 20494 20748, lpattern(shortdash_dot)) xlabel(#18, angle(forty_five) grid) xmtick(##2) legend(off) scheme(tufte) scale(1)
+graph save Graph "Y:\agrajg\Research\Output\020102_MeanPriceTimeAllPR.gph", replace
+graph export "Y:\agrajg\Research\Output\020102_MeanPriceTimeAllPR.png" , width(2100) height(1500) replace
+graph export "T:\agrajg\Output\020102_MeanPriceTimeAllPR.png" , width(2100) height(1500) replace
+serrbar mean_price sd_price date if L_listingtype==4, recast(rline) lwidth(vvvthin) mvopts(recast(line)) ytitle(Mean Price) ylabel(#10, angle(horizontal) grid) xtitle(Date) xline(20362 20423 20494 20748, lpattern(shortdash_dot)) xlabel(#18, angle(forty_five) grid) xmtick(##2) legend(off) scheme(tufte) scale(1)
+graph save Graph "Y:\agrajg\Research\Output\020102_MeanPriceTimeAllSR.gph", replace
+graph export "Y:\agrajg\Research\Output\020102_MeanPriceTimeAllSR.png" , width(2100) height(1500) replace
+graph export "T:\agrajg\Output\020102_MeanPriceTimeAllSR.png" , width(2100) height(1500) replace
+restore
+preserve
+collapse (count)count_price = price  (mean)mean_price = price  (sd)sd_price = price  (min)min_price = price (p1) p1_price = price (p5) p5_price = price (p10) p10_price = price (p25) p25_price = price (p40) p40_price = price (p50) p50_price = price (p60) p60_price = price (p75) p75_price = price (p90) p90_price = price (p95) p95_price = price (p99) p99_price = price  (max)max_price = price  , by (date status L_listingtype)
+ce (p90) p90_price = price (p95) p95_price = price (p99) p99_price = price  (max)max_price = price  , by (date L_listingtype)
+serrbar mean_price sd_price date if status =="A" & L_listingtype==1, recast(rline) lwidth(vvvthin) mvopts(recast(line)) ytitle(Mean Price) ylabel(#10, angle(horizontal) grid) xtitle(Date) xline(20362 20423 20494 20748, lpattern(shortdash_dot)) xlabel(#18, angle(forty_five) grid) xmtick(##2) legend(off) scheme(tufte) scale(1)
+graph save Graph "Y:\agrajg\Research\Output\020102_MeanPriceTimeAvailableEH.gph", replace
+graph export "Y:\agrajg\Research\Output\020102_MeanPriceTimeAvailableEH.png" , width(2100) height(1500) replace
+graph export "T:\agrajg\Output\020102_MeanPriceTimeAvailableEH.png" , width(2100) height(1500) replace
+serrbar mean_price sd_price date if status =="A" & L_listingtype==3, recast(rline) lwidth(vvvthin) mvopts(recast(line)) ytitle(Mean Price) ylabel(#10, angle(horizontal) grid) xtitle(Date) xline(20362 20423 20494 20748, lpattern(shortdash_dot)) xlabel(#18, angle(forty_five) grid) xmtick(##2) legend(off) scheme(tufte) scale(1)
+graph save Graph "Y:\agrajg\Research\Output\020102_MeanPriceTimeAvailablePR.gph", replace
+graph export "Y:\agrajg\Research\Output\020102_MeanPriceTimeAvailablePR.png" , width(2100) height(1500) replace
+graph export "T:\agrajg\Output\020102_MeanPriceTimeAvailablePR.png" , width(2100) height(1500) replace
+serrbar mean_price sd_price date if status =="A" & L_listingtype==4, recast(rline) lwidth(vvvthin) mvopts(recast(line)) ytitle(Mean Price) ylabel(#10, angle(horizontal) grid) xtitle(Date) xline(20362 20423 20494 20748, lpattern(shortdash_dot)) xlabel(#18, angle(forty_five) grid) xmtick(##2) legend(off) scheme(tufte) scale(1)
+graph save Graph "Y:\agrajg\Research\Output\020102_MeanPriceTimeAvailableSR.gph", replace
+graph export "Y:\agrajg\Research\Output\020102_MeanPriceTimeAvailableSR.png" , width(2100) height(1500) replace
+graph export "T:\agrajg\Output\020102_MeanPriceTimeAvailableSR.png" , width(2100) height(1500) replace
+serrbar mean_price sd_price date if status =="R" & L_listingtype==1, recast(rline) lwidth(vvvthin) mvopts(recast(line)) ytitle(Mean Price) ylabel(#10, angle(horizontal) grid) xtitle(Date) xline(20362 20423 20494 20748, lpattern(shortdash_dot)) xlabel(#18, angle(forty_five) grid) xmtick(##2) legend(off) scheme(tufte) scale(1)
+graph save Graph "Y:\agrajg\Research\Output\020102_MeanPriceTimeBookedEH.gph", replace
+graph export "Y:\agrajg\Research\Output\020102_MeanPriceTimeBookedEH.png" , width(2100) height(1500) replace
+graph export "T:\agrajg\Output\020102_MeanPriceTimeBookedEH.png" , width(2100) height(1500) replace
+serrbar mean_price sd_price date if status =="R" & L_listingtype==3, recast(rline) lwidth(vvvthin) mvopts(recast(line)) ytitle(Mean Price) ylabel(#10, angle(horizontal) grid) xtitle(Date) xline(20362 20423 20494 20748, lpattern(shortdash_dot)) xlabel(#18, angle(forty_five) grid) xmtick(##2) legend(off) scheme(tufte) scale(1)
+graph save Graph "Y:\agrajg\Research\Output\020102_MeanPriceTimeBookedPR.gph", replace
+graph export "Y:\agrajg\Research\Output\020102_MeanPriceTimeBookedPR.png" , width(2100) height(1500) replace
+graph export "T:\agrajg\Output\020102_MeanPriceTimeBookedPR.png" , width(2100) height(1500) replace
+serrbar mean_price sd_price date if status =="R" & L_listingtype==4, recast(rline) lwidth(vvvthin) mvopts(recast(line)) ytitle(Mean Price) ylabel(#10, angle(horizontal) grid) xtitle(Date) xline(20362 20423 20494 20748, lpattern(shortdash_dot)) xlabel(#18, angle(forty_five) grid) xmtick(##2) legend(off) scheme(tufte) scale(1)
+graph save Graph "Y:\agrajg\Research\Output\020102_MeanPriceTimeBookedSR.gph", replace
+graph export "Y:\agrajg\Research\Output\020102_MeanPriceTimeBookedSR.png" , width(2100) height(1500) replace
+graph export "T:\agrajg\Output\020102_MeanPriceTimeBookedSR.png" , width(2100) height(1500) replace
+restore
+
+*-------------------------------------------------------------------------------
+*-------------------------------------------------------------------------------
+clear all
+set more off
+*-------------------------------------------------------------------------------
+use "Y:\agrajg\Research\Data\temp\010100_MarketDataAllIDsBlockedDropped.dta" , clear
+merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\010213_L_listingtype.dta"
+drop if _merge ==2
+drop _merge
+// preserve
+g revenue = price * sdum3
+order revenue , after(price)
+* counting the number of listing held by a host per day 
+* This includes all listings active as well as in active
+collapse (count)NListings = propertyid (sum) NBookedListings = sdum3 (sum) TotalRevenue= revenue, by (hostid date)
+* Categorizing the host based on maximum and minimum number of listings held over the period of data
+* Again it contain all the listings active and inactive
+collapse (min) min_NListings = NListings (max) max_NListings =NListings (sum) NlistingSupplied = NListings (mean) mean_NListings = NListings (count) DaysActive = date   (sum) TotalBookings = NBookedListings (mean) meanBookings = NBookedListings (sum) TotalRevenue =TotalRevenue (mean) meanRevenue = TotalRevenue , by (hostid )
+format %9.0g DaysActive
+capture drop tempvar
+gen 	tempvar = ""
+// replace tempvar = "Group 1: Min1Max1Listing" 			if (min==1) 			& (max==1)
+// replace tempvar = "Group 2: Min1Max23Listing"			if (min==1) 			& (max==2 | max==3)
+// replace tempvar = "Group 3: MinGr2Max23Listing"			if (min>=2)  			& (max==2 | max==3)
+// replace tempvar = "Group 4: Min1MaxGr4Listing"			if (min==1) 			& (max>=4)
+// replace tempvar = "Group 5: Min2MaxGr4Listing" 			if (min>=2) 			& (max>=4)
+replace tempvar = "Group 1" if (max_NListings==1)
+replace tempvar = "Group 2" if (max_NListings==2 | max_NListings==3)
+replace tempvar = "Group 3" if (max_NListings==4 | max_NListings==5)
+replace tempvar = "Group 4" if (max_NListings>=6 & max_NListings<=10)
+replace tempvar = "Group 5" if (max_NListings>10)
+encode tempvar, generate(HostType)
+collapse (count)NHosts = hostid (sum) TotalListingSupplied = NlistingSupplied (sum) TotalBookings = TotalBookings (sum) TotalRevenue = TotalRevenue  , by (HostType)
+format %12.0g TotalBookings
+format %12.0g TotalRevenue
+format %12.0g TotalListingSupplied
+
+foreach var in NHosts TotalListingSupplied TotalBookings TotalRevenue {
+	egen Tot`var' = sum(`var')
+	gen Per`var' = round((`var' * 100 / Tot`var'),0.1)
+	order Tot`var' Per`var' , after (`var')
+}
+label var HostType "Host type"
+label var PerNHosts "Number of hosts (%)"
+label var PerTotalListingSupplied "Listings supplied (%)" 
+label var PerTotalBookings "Booked listings (%)"
+label var PerTotalRevenue "Total revenue (%)"
+save "Y:\agrajg\Research\Output\020102_AggregateHostActivity.dta", replace
+
+keep HostType Per*
+texsave using "T:\agrajg\Output\020102_AggregateHostActivity.tex" , ///
+	title(Hosts, rental supply and sales) ///
+	size(3) ///
+	width(\textwidth) ///
+	align(XCCCCC) ///
+	location(p) ///
+	marker(020102_AggregateHostActivity) ///
+	autonumber ///
+	footnote("Note: These figures are computed for a period of 32 months from August 2014 to March 2017", size(2)) ///
+	varlabels ///
+	replace ///
+	headlines("\begin{center}") ///
+	footlines("\end{center}") ///
+	frag ///
+	rowsep(0pt)
+	
+texsave using "Y:\agrajg\Research\Output\020102_AggregateHostActivity.tex" , ///
+	title(Hosts, rental supply and sales) ///
+	size(3) ///
+	width(\textwidth) ///
+	align(XCCCCC) ///
+	location(p) ///
+	marker(020102_AggregateHostActivity) ///
+	autonumber ///
+	footnote("Note: These figures are computed for a period of 32 months from August 2014 to March 2017", size(2)) ///
+	varlabels ///
+	replace ///
+	headlines("\begin{center}") ///
+	footlines("\end{center}") ///
+	frag ///
+	rowsep(0pt)
 
 
 /*===============================================================================

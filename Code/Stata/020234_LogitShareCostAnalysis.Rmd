@@ -1,0 +1,741 @@
+---
+title: "Logit share, cost markup and profits"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r}
+rm(list = ls())
+.libPaths(new = c("H:/agrajg/R", "H:/agrajg/R2")) 
+library(tibble)
+library(dplyr)
+library(magrittr)
+library(caret)
+library(ggplot2)
+library(tidyverse)
+library(ggthemes)
+library(stargazer)
+library(magrittr)
+library(h2o)
+# h2o.init(nthreads = -1,max_mem_size = "265G", port =11229)
+
+# csv or R data to h2o data
+# marketdata <- read.csv(file = "Y:/agrajg/Research/Data/temp/010301_DataforQuantityRegressions.csv")
+# save(marketdata, file = "Y:/agrajg/Research/Data/temp/020233_marketdata.RData")
+ptm <- proc.time()
+load(file = "Y:/agrajg/Research/Data/temp/020233_sharecost2.RData")
+proc.time() - ptm
+# sharecost.df$propertyid <- as.factor(sharecost.df$propertyid)
+
+demand.price.beta <- -2.375901 
+purge.lprice.beta <- 0.1958391
+purge.booking.beta <-  -0.06882944 
+# Colors for the plots
+colorpal1 <- c("#000000", "#E69F00")
+```
+
+
+### Consumer Welfare 
+
+```{r}
+
+sharecost.df <- sharecost.df %>% 
+  mutate( 
+    change.CS.price         = if_else((T_RegPurgeDum==1 & status=="R") ,
+                                      -abs(purge.lprice.beta)*price, 
+                                      NA_real_),      
+    CF.log.odds.booking     = if_else(T_RegPurgeDum==1 & status=="A",
+                                      log((R+(abs(purge.booking.beta)*(1-R)))/(1-(R+(abs(purge.booking.beta)*(1-R))))),
+                                      NA_real_),  
+    CF.booking.pred         = if_else(T_RegPurgeDum==1 & status=="A" & CF.log.odds.booking >=0, 
+                                      1, 
+                                      if_else(T_RegPurgeDum==1 & status == "A" & CF.log.odds.booking < 0,
+                                              0, 
+                                              NA_real_)), 
+    change.CS.bookings      = if_else(T_RegPurgeDum==1 & status == "A" & CF.log.odds.booking >=0, 
+                                      -CF.log.odds.booking/abs(purge.lprice.beta), 
+                                      NA_real_),
+    CF.log.odds.price       = if_else(T_RegPurgeDum==1 & status=="A", 
+                                      log(R/A) + (abs(demand.price.beta)*abs(purge.lprice.beta)*price), 
+                                      NA_real_),
+    CF.booking.pred.variety = if_else(T_RegPurgeDum==1 & status=="A" & CF.log.odds.price >=0, 
+                                      1,
+                                      if_else(T_RegPurgeDum==1 & status=="A" & CF.log.odds.price <0,
+                                              0, 
+                                              NA_real_)),
+    change.CF.variety       = if_else(CF.booking.pred.variety==1, 
+                                      -CF.log.odds.price/abs(demand.price.beta), 
+                                      NA_real_)
+    )
+
+
+```
+
+### Computing summary stats of counsumer welfare stats
+
+
+```{r}
+# Consumers who paid a higher price lost surplus
+summary(sharecost.df$change.CS.price)
+sum(sharecost.df$change.CS.price, na.rm = TRUE)
+sum(sharecost.df$change.CS.price, na.rm = TRUE)/sum(sharecost.df$T_RegPurgeDum, na.rm = TRUE)
+# Counterfactual utility of those who did not book in benchmark case
+summary(sharecost.df$CF.log.odds.booking)
+# Counterfactual booking predictions of those who did not book in benchmark
+summary(sharecost.df$CF.booking.pred)
+# Income that would compensate the increased utility in counterfactual environment, 
+# to bring positive utility to zero(no booking)
+summary(sharecost.df$change.CS.bookings)
+sum(sharecost.df$change.CS.bookings, na.rm = TRUE)
+sum(sharecost.df$change.CS.bookings, na.rm = TRUE)/sum(sharecost.df$T_RegPurgeDum, na.rm = TRUE)
+# In the counterfactual environmment, when the purge did not happen and prices were 
+# lower more bookings would happen. 
+# these extra bookings happened because of lower prices of existing and new bookings 
+# Had the prices not changed, between benchmark and CF, the extra utility  comes 
+# from wider range of product available to the consumers
+summary(sharecost.df$CF.log.odds.price)
+# Predicted CF bookings 
+summary(sharecost.df$CF.booking.pred.variety)
+# CV for variety loss
+summary(sharecost.df$change.CF.variety)
+sum(sharecost.df$change.CF.variety, na.rm = TRUE)
+sum(sharecost.df$change.CF.variety, na.rm = TRUE)/sum(sharecost.df$T_RegPurgeDum, na.rm = TRUE)
+sharecost.df %>% head()
+sharecost.df %>% str()
+
+```
+
+
+### Supply Side
+
+```{r}
+########################################################################################
+# Producer surplus and makups
+# Here I compute markups and sales weighted markups
+sharecost.df <- sharecost.df %>% 
+  mutate(priceSW = if_else(status=="R", price, NA_integer_),
+         mcSW = if_else(status=="R", mc, NA_real_),
+         markupSW = if_else(status=="R",`markup <- price - mc`,NA_real_),
+         markupSW.per = markupSW*100/priceSW, 
+         markup = `markup <- price - mc`,
+         markup.per = markup*100/price,
+         profit = `profit <- if_else(status == "R", price - mc, -mc)`)  %>% 
+  select(-`markup <- price - mc`,-`profit <- if_else(status == "R", price - mc, -mc)`) 
+         
+```
+
+
+### Calculating summary stats of all variables 
+
+```{r}
+# storing summary stats of these suplly side variables
+summary.stats.supply <- sharecost.df %>% 
+  select(price, priceSW , mc, mcSW,  markup,markupSW, markup.per, markupSW.per, profit) %>% 
+  summarise_all(funs(n = sum(!is.na(.)),
+                     mean = mean(., na.rm = TRUE), 
+                     sd = sd(., na.rm = TRUE), 
+                     min = min(., na.rm = TRUE), 
+                     p01 = quantile(., probs = 0.01,na.rm = TRUE), 
+                     p05 = quantile(., probs = 0.05,na.rm = TRUE), 
+                     p10 = quantile(., probs = 0.10,na.rm = TRUE), 
+                     p25 = quantile(., probs = 0.25,na.rm = TRUE), 
+                     p50 = quantile(., probs = 0.50,na.rm = TRUE), 
+                     p75 = quantile(., probs = 0.75,na.rm = TRUE), 
+                     p90 = quantile(., probs = 0.90,na.rm = TRUE), 
+                     p95 = quantile(., probs = 0.95,na.rm = TRUE), 
+                     p99 = quantile(., probs = 0.99,na.rm = TRUE),
+                     max = max(., na.rm = TRUE)))
+
+
+```
+
+### Writing to latex
+
+```{r}
+# exporting summary stats to latex 
+# no sales weighted
+sharecost.df %>%
+  select(price,mc,markup,markup.per,profit) %>%
+  filter(between(mc,summary.stats.supply$mc_p01, summary.stats.supply$mc_p99)) %>%
+  stargazer(type = "latex",
+            title = "Summary Statistics of Prices, Marginal Cost and Markup",
+            summary.stat = c("n","mean", "sd", "min", "p25", "median", "p75", "max"),
+            notes = c("1. N = 34,854,820", "2. Some other notes .."),
+            style = "aer",
+            digits =2,
+            font.size = "scriptsize",
+            flip = TRUE,
+            label = "PriceMarkupProfit")
+
+# sales weighted
+sharecost.df %>%
+  select(priceSW,mcSW,markupSW,markupSW.per) %>%
+  filter(between(mcSW,summary.stats.supply$mcSW_p01, summary.stats.supply$mcSW_p99)) %>%
+  stargazer(type = "latex",
+            title = "Summary Statistics of (Sales Weighted) Prices, Marginal Cost and Markup",
+            summary.stat = c("n","mean", "sd", "min", "p25", "median", "p75", "max"),
+            notes = c("1. N = 34,854,820", "2. Some other notes .."),
+            style = "aer",
+            digits =2,
+            font.size = "scriptsize",
+            flip = TRUE,
+            label = "PriceMarkupProfitSW")
+
+
+```
+
+
+### Plotting price, marginal costs, markup and profits
+```{r}
+# Plotting density of price
+sharecost.df %>% 
+  select(price,priceSW) %>% 
+  filter(between(price, summary.stats.supply$price_p01, summary.stats.supply$price_p99)) %>% 
+  ggplot() +
+  geom_density(mapping = aes(x=price, color = 'price')) +
+  geom_density(mapping = aes(x=priceSW, color = 'priceSW'))  +
+  scale_colour_manual(name = 'Prices', values =colorpal1)
+  
+# Plotting density of marginal cost
+sharecost.df %>% 
+  select(mc,mcSW) %>% 
+  filter(between(x = mc, left = summary.stats.supply$mc_p01,right = summary.stats.supply$mc_p99)) %>% 
+  ggplot() +
+  geom_density(mapping = aes(x=mc, color = 'mc')) +
+  geom_density(mapping = aes(x=mcSW, color = 'mcSW'))  +
+  scale_colour_manual(name = 'Marginal Costs', values =colorpal1)
+
+# Plotting density of markup
+sharecost.df %>% 
+  select(markup, markupSW) %>% 
+  filter(between(markup, summary.stats.supply$markup_p01, summary.stats.supply$markup_p99)) %>% 
+  ggplot() +
+  geom_density(mapping = aes(x=markup, color = 'markup')) +
+  geom_density(mapping = aes(x=markupSW, color = 'markupSW')) +
+  scale_colour_manual(name = 'Markup', values =colorpal1)
+
+# Plotting density of markup (as a percentage of prices)
+sharecost.df %>% 
+  select(markup.per, markupSW.per) %>% 
+  filter(between(markup.per, summary.stats.supply$markup.per_p01, summary.stats.supply$markup.per_p99)) %>% 
+  ggplot() +
+  geom_density(mapping = aes(x=markup.per, color = 'markup.per')) +
+  geom_density(mapping = aes(x=markupSW.per, color = 'markupSW.per')) +
+  scale_colour_manual(name = 'Markup.per', values =colorpal1)
+
+
+# Plotting density of profits of all properies
+sharecost.df %>% 
+  select(profit) %>% 
+  filter(between(profit, summary.stats.supply$profit_p01, summary.stats.supply$profit_p99)) %>% 
+  ggplot() +
+  geom_density(mapping = aes(profit))
+
+```
+
+# Before and after comparision
+
+```{r}
+sharecost.df %>% 
+  select(price, T_RegPurgeDum) %>% 
+  filter(between(price, summary.stats.supply$price_p01, summary.stats.supply$price_p99)) %>% 
+  ggplot()+
+  geom_density(mapping = aes(x=price, color = factor(T_RegPurgeDum))) +
+  scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1)
+
+ 
+
+sharecost.df %>% 
+  select(priceSW, T_RegPurgeDum) %>% 
+  filter(between(priceSW, summary.stats.supply$price_p01, summary.stats.supply$price_p99)) %>% 
+  ggplot()+
+  geom_density(mapping = aes(x=priceSW, color = factor(T_RegPurgeDum))) +
+  scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1)
+
+```
+
+
+```{r}
+sharecost.df %>% 
+  select(mc, T_RegPurgeDum) %>% 
+  filter(between(mc, summary.stats.supply$mc_p01, summary.stats.supply$mc_p99)) %>% 
+  ggplot()+
+  geom_density(mapping = aes(x=mc, color = factor(T_RegPurgeDum))) +
+  scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1)
+
+ 
+
+sharecost.df %>% 
+  select(mcSW, T_RegPurgeDum) %>% 
+  filter(between(mcSW, summary.stats.supply$mc_p01, summary.stats.supply$mc_p99)) %>% 
+  ggplot()+
+  geom_density(mapping = aes(x=mcSW, color = factor(T_RegPurgeDum))) +
+  scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1)
+
+```
+
+```{r}
+sharecost.df %>% 
+  select(markup, T_RegPurgeDum) %>% 
+  filter(between(markup, summary.stats.supply$markup_p01, summary.stats.supply$markup_p99)) %>% 
+  ggplot()+
+  geom_density(mapping = aes(x=markup, color = factor(T_RegPurgeDum))) +
+  scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1)
+
+ 
+
+sharecost.df %>% 
+  select(markupSW, T_RegPurgeDum) %>% 
+  filter(between(markupSW, summary.stats.supply$markup_p01, summary.stats.supply$markup_p99)) %>% 
+  ggplot()+
+  geom_density(mapping = aes(x=markupSW, color = factor(T_RegPurgeDum))) +
+  scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1)
+
+```
+
+```{r}
+sharecost.df %>% 
+  select(markup.per, T_RegPurgeDum) %>% 
+  filter(between(markup.per, summary.stats.supply$markup.per_p01, summary.stats.supply$markup.per_p99)) %>% 
+  ggplot()+
+  geom_density(mapping = aes(x=markup.per, color = factor(T_RegPurgeDum))) +
+  scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1)
+
+ 
+
+sharecost.df %>% 
+  select(markupSW.per, T_RegPurgeDum) %>% 
+  filter(between(markupSW.per, summary.stats.supply$markup.per_p01, summary.stats.supply$markup.per_p99)) %>% 
+  ggplot()+
+  geom_density(mapping = aes(x=markupSW.per, color = factor(T_RegPurgeDum))) +
+  scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1)
+
+```
+
+
+```{r}
+load(file = "Y:\\agrajg\\Research\\Data\\temp\\010401_CleanedPropertyDataAirDna.RData")
+
+host.ptype.df <- Property.df %>% 
+  select(propertyid, listingtype)
+
+sharecost.df <- inner_join(x=sharecost.df,y=host.ptype.df, by = c("propertyid"))
+
+```
+
+
+### Prices 
+
+```{r}
+
+ltype_list <- levels(sharecost.df$listingtype)
+for(ltype in ltype_list){
+  p <- sharecost.df %>% 
+    filter(listingtype == ltype) %>% 
+    select(price, T_RegPurgeDum) %>% 
+    filter(between(price, summary.stats.supply$price_p01, summary.stats.supply$price_p99)) %>% 
+    ggplot() +
+    geom_density(mapping = aes(x=price, color = factor(T_RegPurgeDum))) +
+    scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1) +
+    labs(title = as.character(ltype))
+
+  print(p)
+}
+```
+
+
+### Prices (sales weighted)
+
+
+```{r}
+
+ltype_list <- levels(sharecost.df$listingtype)
+for(ltype in ltype_list){
+  p <- sharecost.df %>% 
+    filter(listingtype == ltype) %>% 
+    select(priceSW, T_RegPurgeDum) %>% 
+    filter(between(priceSW, summary.stats.supply$price_p01, summary.stats.supply$price_p99)) %>% 
+    ggplot() +
+    geom_density(mapping = aes(x=priceSW, color = factor(T_RegPurgeDum))) +
+    scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1) +
+    labs(title = as.character(ltype))
+
+  print(p)
+}
+```
+
+
+
+### Marginal Costs 
+
+```{r}
+
+ltype_list <- levels(sharecost.df$listingtype)
+for(ltype in ltype_list){
+  p <- sharecost.df %>% 
+    filter(listingtype == ltype) %>% 
+    select(mc, T_RegPurgeDum) %>% 
+    filter(between(mc, summary.stats.supply$mc_p01, summary.stats.supply$mc_p99)) %>% 
+    ggplot() +
+    geom_density(mapping = aes(x=mc, color = factor(T_RegPurgeDum))) +
+    scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1) +
+    labs(title = as.character(ltype))
+
+  print(p)
+}
+```
+
+
+### Marginal Cost  (sales weighted)
+
+
+```{r}
+
+ltype_list <- levels(sharecost.df$listingtype)
+for(ltype in ltype_list){
+  p <- sharecost.df %>% 
+    filter(listingtype == ltype) %>% 
+    select(mcSW, T_RegPurgeDum) %>% 
+    filter(between(mcSW, summary.stats.supply$mc_p01, summary.stats.supply$mc_p99)) %>% 
+    ggplot() +
+    geom_density(mapping = aes(x=mcSW, color = factor(T_RegPurgeDum))) +
+    scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1) +
+    labs(title = as.character(ltype))
+
+  print(p)
+}
+```
+
+
+### Markup
+
+```{r}
+
+ltype_list <- levels(sharecost.df$listingtype)
+for(ltype in ltype_list){
+  p <- sharecost.df %>% 
+    filter(listingtype == ltype) %>% 
+    select(markup, T_RegPurgeDum) %>% 
+    filter(between(markup, summary.stats.supply$markup_p01, summary.stats.supply$markup_p99)) %>% 
+    ggplot() +
+    geom_density(mapping = aes(x=markup, color = factor(T_RegPurgeDum))) +
+    scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1) +
+    labs(title = as.character(ltype))
+
+  print(p)
+}
+```
+
+
+### Markup  (sales weighted)
+
+
+```{r}
+
+ltype_list <- levels(sharecost.df$listingtype)
+for(ltype in ltype_list){
+  p <- sharecost.df %>% 
+    filter(listingtype == ltype) %>% 
+    select(markupSW, T_RegPurgeDum) %>% 
+    filter(between(markupSW, summary.stats.supply$markup_p01, summary.stats.supply$markup_p99)) %>% 
+    ggplot() +
+    geom_density(mapping = aes(x=markupSW, color = factor(T_RegPurgeDum))) +
+    scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1) +
+    labs(title = as.character(ltype))
+
+  print(p)
+}
+```
+
+
+### Markup as a percentage of price
+
+```{r}
+
+ltype_list <- levels(sharecost.df$listingtype)
+for(ltype in ltype_list){
+  p <- sharecost.df %>% 
+    filter(listingtype == ltype) %>% 
+    select(markup.per, T_RegPurgeDum) %>% 
+    filter(between(markup.per, summary.stats.supply$markup.per_p01, summary.stats.supply$markup.per_p99)) %>% 
+    ggplot() +
+    geom_density(mapping = aes(x=markup.per, color = factor(T_RegPurgeDum))) +
+    scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1) +
+    labs(title = as.character(ltype))
+
+  print(p)
+}
+```
+
+
+### Markup as percentage of price  (sales weighted)
+
+
+```{r}
+
+ltype_list <- levels(sharecost.df$listingtype)
+for(ltype in ltype_list){
+  p <- sharecost.df %>% 
+    filter(listingtype == ltype) %>% 
+    select(markupSW.per, T_RegPurgeDum) %>% 
+    filter(between(markupSW.per, summary.stats.supply$markup.per_p01, summary.stats.supply$markup.per_p99)) %>% 
+    ggplot() +
+    geom_density(mapping = aes(x=markupSW.per, color = factor(T_RegPurgeDum))) +
+    scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1) +
+    labs(title = as.character(ltype))
+
+  print(p)
+}
+```
+
+### Profits  (sales weighted)
+
+
+```{r}
+
+ltype_list <- levels(sharecost.df$listingtype)
+for(ltype in ltype_list){
+  p <- sharecost.df %>% 
+    filter(listingtype == ltype) %>% 
+    select(profit, T_RegPurgeDum) %>% 
+    filter(between(profit, summary.stats.supply$profit_p01, summary.stats.supply$profit_p99)) %>% 
+    ggplot() +
+    geom_density(mapping = aes(x=profit, color = factor(T_RegPurgeDum))) +
+    scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1) +
+    labs(title = as.character(ltype))
+
+  print(p)
+}
+```
+
+
+## Differences in distribution across host types
+
+
+```{r}
+
+host.classification  <- sharecost.df %>% 
+  select(propertyid, hostid, date) %>% 
+  group_by(hostid, date) %>% 
+  summarise(propertyid_n = n()) %>% 
+  group_by(hostid) %>% 
+  summarise(propertyid_n_min = min(propertyid_n), propertyid_n_max = max(propertyid_n)) %>% 
+  mutate(host_type = if_else(propertyid_n_max == 1, "max1", 
+                             if_else(between(propertyid_n_max, 2,3), "max23", 
+                                     ifelse(between(propertyid_n_max,4,5), "max45", 
+                                            if_else(between(propertyid_n_max, 6, 9), "max6789",
+                                                    if_else(propertyid_n_max > 10, "max10",
+                                                            NA_character_)))))) %>% 
+  select(hostid, host_type)
+
+sharecost.df <- inner_join(sharecost.df, host.classification, by = c("hostid"))
+```
+
+### Prices
+```{r}
+ltype_list <- levels(sharecost.df$listingtype)
+htype_list <- levels(factor(sharecost.df$host_type))
+for(ltype in ltype_list){
+  for(htype in htype_list){
+    
+    p <- sharecost.df %>% 
+    filter(listingtype == ltype & host_type==htype) %>% 
+    select(price, T_RegPurgeDum) %>% 
+    filter(between(price, summary.stats.supply$price_p01, summary.stats.supply$price_p99)) %>% 
+    ggplot() +
+    geom_density(mapping = aes(x=price, color = factor(T_RegPurgeDum))) +
+    scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1) +
+    labs(title = paste(as.character(ltype), as.character(htype), sep = " & "))
+
+    print(p)
+  }
+}
+```
+
+### Price(Sales Weighted)
+
+```{r}
+ltype_list <- levels(sharecost.df$listingtype)
+htype_list <- levels(factor(sharecost.df$host_type))
+for(ltype in ltype_list){
+  for(htype in htype_list){
+    
+    p <- sharecost.df %>% 
+    filter(listingtype == ltype & host_type==htype) %>% 
+    select(priceSW, T_RegPurgeDum) %>% 
+    filter(between(priceSW, summary.stats.supply$price_p01, summary.stats.supply$price_p99)) %>% 
+    ggplot() +
+    geom_density(mapping = aes(x=priceSW, color = factor(T_RegPurgeDum))) +
+    scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1) +
+    labs(title = paste(as.character(ltype), as.character(htype), sep = " & "))
+    
+    print(p)
+  }
+}
+```
+
+
+
+
+### Marginal Cost
+
+```{r}
+ltype_list <- levels(sharecost.df$listingtype)
+htype_list <- levels(factor(sharecost.df$host_type))
+for(ltype in ltype_list){
+  for(htype in htype_list){
+    
+    p <- sharecost.df %>% 
+    filter(listingtype == ltype & host_type==htype) %>% 
+    select(mc, T_RegPurgeDum) %>% 
+    filter(between(mc, summary.stats.supply$mc_p01, summary.stats.supply$mc_p99)) %>% 
+    ggplot() +
+    geom_density(mapping = aes(x=mc, color = factor(T_RegPurgeDum))) +
+    scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1) +
+    labs(title = paste(as.character(ltype), as.character(htype), sep = " & "))
+
+    print(p)
+  }
+}
+```
+
+### Marginal Cost (Sales Weighted)
+
+```{r}
+ltype_list <- levels(sharecost.df$listingtype)
+htype_list <- levels(factor(sharecost.df$host_type))
+for(ltype in ltype_list){
+  for(htype in htype_list){
+    
+    p <- sharecost.df %>% 
+    filter(listingtype == ltype & host_type==htype) %>% 
+    select(mcSW, T_RegPurgeDum) %>% 
+    filter(between(mcSW, summary.stats.supply$mc_p01, summary.stats.supply$mc_p99)) %>% 
+    ggplot() +
+    geom_density(mapping = aes(x=mcSW, color = factor(T_RegPurgeDum))) +
+    scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1) +
+    labs(title = paste(as.character(ltype), as.character(htype), sep = " & "))
+    
+    print(p)
+  }
+}
+```
+
+
+### Markup
+
+```{r}
+ltype_list <- levels(sharecost.df$listingtype)
+htype_list <- levels(factor(sharecost.df$host_type))
+for(ltype in ltype_list){
+  for(htype in htype_list){
+    
+    p <- sharecost.df %>% 
+    filter(listingtype == ltype & host_type==htype) %>% 
+    select(markup, T_RegPurgeDum) %>% 
+    filter(between(markup, summary.stats.supply$markup_p01, summary.stats.supply$markup_p99)) %>% 
+    ggplot() +
+    geom_density(mapping = aes(x=markup, color = factor(T_RegPurgeDum))) +
+    scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1) +
+    labs(title = paste(as.character(ltype), as.character(htype), sep = " & "))
+
+    print(p)
+  }
+}
+```
+
+### Markup (Sales Weighted)
+
+```{r}
+ltype_list <- levels(sharecost.df$listingtype)
+htype_list <- levels(factor(sharecost.df$host_type))
+for(ltype in ltype_list){
+  for(htype in htype_list){
+    
+    p <- sharecost.df %>% 
+    filter(listingtype == ltype & host_type==htype) %>% 
+    select(markupSW, T_RegPurgeDum) %>% 
+    filter(between(markupSW, summary.stats.supply$mc_p01, summary.stats.supply$mc_p99)) %>% 
+    ggplot() +
+    geom_density(mapping = aes(x=markupSW, color = factor(T_RegPurgeDum))) +
+    scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1) +
+    labs(title = paste(as.character(ltype), as.character(htype), sep = " & "))
+    
+    print(p)
+  }
+}
+```
+
+
+
+### Markup Percentage of price
+
+```{r}
+ltype_list <- levels(sharecost.df$listingtype)
+htype_list <- levels(factor(sharecost.df$host_type))
+for(ltype in ltype_list){
+  for(htype in htype_list){
+    
+    p <- sharecost.df %>% 
+    filter(listingtype == ltype & host_type==htype) %>% 
+    select(markup.per, T_RegPurgeDum) %>% 
+    filter(between(markup.per, summary.stats.supply$markup.per_p01, summary.stats.supply$markup.per_p99)) %>% 
+    ggplot() +
+    geom_density(mapping = aes(x=markup.per, color = factor(T_RegPurgeDum))) +
+    scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1) +
+    labs(title = paste(as.character(ltype), as.character(htype), sep = " & "))
+
+    print(p)
+  }
+}
+```
+
+### Markup Percentage of price (Sales Weighted)
+
+```{r}
+ltype_list <- levels(sharecost.df$listingtype)
+htype_list <- levels(factor(sharecost.df$host_type))
+for(ltype in ltype_list){
+  for(htype in htype_list){
+    
+    p <- sharecost.df %>% 
+    filter(listingtype == ltype & host_type==htype) %>% 
+    select(markupSW.per, T_RegPurgeDum) %>% 
+    filter(between(markupSW.per, summary.stats.supply$markup.per_p01, summary.stats.supply$markup.per_p99)) %>% 
+    ggplot() +
+    geom_density(mapping = aes(x=markupSW.per, color = factor(T_RegPurgeDum))) +
+    scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1) +
+    labs(title = paste(as.character(ltype), as.character(htype), sep = " & "))
+    
+    print(p)
+  }
+}
+```
+
+
+### Profit 
+
+```{r}
+ltype_list <- levels(sharecost.df$listingtype)
+htype_list <- levels(factor(sharecost.df$host_type))
+for(ltype in ltype_list){
+  for(htype in htype_list){
+    
+    p <- sharecost.df %>% 
+    filter(listingtype == ltype & host_type==htype) %>% 
+    select(profit, T_RegPurgeDum) %>% 
+    filter(between(profit, summary.stats.supply$profit_p01, summary.stats.supply$profit_p99)) %>% 
+    ggplot() +
+    geom_density(mapping = aes(x=profit, color = factor(T_RegPurgeDum))) +
+    scale_colour_manual(name = 'Post Purge Dummy', values =colorpal1) +
+    labs(title = paste(as.character(ltype), as.character(htype), sep = " & "))
+
+    print(paste(as.character(ltype), as.character(htype), sep = " & "))    
+    print(p)
+  }
+}
+
+
+```

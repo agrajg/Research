@@ -1,0 +1,137 @@
+---
+title: "Demand Estimation using market data - 1"
+author: "Agraj Gupta"
+date: "April 11, 2018"
+output: html_document
+---
+
+
+```{r}
+# Packages and h2o setup 
+rm(list = ls())
+.libPaths(new = c("H:/agrajg/R", "H:/agrajg/R2")) 
+library(tibble)
+library(dplyr)
+library(magrittr)
+library(caret)
+library(ggplot2)
+library(tidyverse)
+library(ggthemes)
+library(magrittr)
+library(h2o)
+localH2O <- h2o.init(nthreads = -1,max_mem_size = '265g' ,port =54325)
+```
+
+
+```{r, include=FALSE}
+# Loading market data
+ptm <- proc.time()
+load(file = "000001_AIRDNA_market_data_clean_final.RData")
+
+# removing blocked listings, changing name from MarketARB.df to market.df
+market.df <- MarketARB.df %>% 
+                  select(-ends_with("alt")) %>% 
+                  filter(status != "B")
+rm(list = c("MarketARB.df"))
+# market.df %>% head()
+# market.df %>% tail()
+
+# Converting date into R date format
+market.df$datefactor <- market.df$date
+market.df$date <- as.Date(market.df$date, "%d%b%Y")
+# market.df %>% head()
+# market.df %>% tail()
+
+# Subsetting the data frame
+# market.df %>% filter(date <= "01-01-2015") %>% head()
+str(market.df)
+market.df <- market.df %>% filter(date < "2015-01-01")
+str(market.df)
+proc.time() - ptm
+
+# Converting into h2o data frame
+ptm <- proc.time()
+market.df.h2o <- as.h2o(market.df)
+proc.time() - ptm
+# Creating formating variables
+market.df.h2o$propertyid <- as.factor(market.df.h2o$propertyid)
+market.df.h2o$lprice = log(market.df.h2o$price)
+
+```
+
+This is an exercise to estimate demand for Airbnb host using the market data. Specifically, we are interested in demand for product $j$ in each market indexed by time $t$.  
+
+```{r, include=FALSE}
+# Model 1 
+# logit of price on quantity
+Output_Path = "Y:/agrajg/Research/Paper1/Output/Logit_Demand_Market_Level"
+```
+
+Simple logit booking dummy on price, no controls
+```{r}
+yvar <- "status"
+xvar1 <- c("lprice")
+glm.model1 <- h2o.glm(x= xvar1, y=yvar, training_frame=market.df.h2o, family = "binomial",
+                  remove_collinear_columns = TRUE,
+                  lambda = 0 ,
+                  seed = 47374, 
+                  objective_epsilon = 0.000001, 
+                  max_iterations = 10000, 
+                  compute_p_values = FALSE)
+# h2o.saveModel(glm.model1, path = paste(Output_Path, "/", "glm.model1", sep = ""), force = TRUE)
+h2o.saveModel(glm.model1, path = Output_Path, force = TRUE)
+glm.model1@model$coefficients["lprice"]
+
+```
+
+Logit - booking dummy on price , property fixed effects
+```{r}
+xvar2 <- c("lprice", "propertyid")
+glm.model2 <- h2o.glm(x= xvar2, y=yvar, training_frame=market.df.h2o, family = "binomial",
+                  remove_collinear_columns = TRUE,
+                  lambda = 0 ,
+                  seed = 47374, 
+                  objective_epsilon = 0.000001, 
+                  max_iterations = 10000, 
+                  compute_p_values = FALSE)
+# h2o.saveModel(glm.model2, path = paste(Output_Path, "/", "glm.model2", sep = ""), force = TRUE)
+h2o.saveModel(glm.model2, path = Output_Path, force = TRUE)
+glm.model2@model$coefficients["lprice"]
+```
+
+Logit - booking dummy on price , property fixed effects, date fixed effects
+```{r}
+# Creating a date factor through string variable
+market.df.h2o$datefactor <- as.factor(as.character(market.df.h2o$date))
+xvar3 <- c("lprice", "propertyid", "datefactor")
+glm.model3 <- h2o.glm(x= xvar3, y=yvar, training_frame=market.df.h2o, family = "binomial",
+                  remove_collinear_columns = TRUE,
+                  lambda = 0 ,
+                  seed = 47374, 
+                  objective_epsilon = 0.000001, 
+                  max_iterations = 10000, 
+                  compute_p_values = FALSE)
+# h2o.saveModel(glm.model3, path = paste(Output_Path, "/", "glm.model3", sep = ""), force = TRUE)
+h2o.saveModel(glm.model3, path = Output_Path, force = TRUE)
+glm.model3@model$coefficients["lprice"]
+# Removing date factor variable from the data frame
+market.df.h2o <- market.df.h2o[-c("datefactor")]
+```
+
+```{r}
+# xvar3 <- c("lprice", "propertyid", "datefactor")
+# glm.model3 <- h2o.glm(x= xvar3, y=yvar, training_frame=market.df.h2o, family = "binomial",
+#                   remove_collinear_columns = TRUE,
+#                   lambda = 0 ,
+#                   seed = 47374, 
+#                   objective_epsilon = 0.000001, 
+#                   max_iterations = 10000, 
+#                   compute_p_values = FALSE)
+# # h2o.saveModel(glm.model3, path = paste(Output_Path, "/", "glm.model3", sep = ""), force = TRUE)
+# h2o.saveModel(glm.model3, path = Output_Path, force = TRUE)
+# glm.model3@model$coefficients["lprice"]
+
+
+
+```
+

@@ -65,6 +65,5 @@ drop _merge
 count
 *-------------------------------------------------------------------------------
 save "Y:\agrajg\Research\Data\temp\010303_DataforActivityRegressions.dta", replace
+export delimited using "Y:\agrajg\Research\Data\temp\010303_DataforActivityRegressions.csv", replace
 *-------------------------------------------------------------------------------
-
-

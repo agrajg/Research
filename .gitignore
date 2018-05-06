@@ -25,6 +25,9 @@
 *metastore_db*
 *.ster
 *.tex
+*/Output/*
+/Output/*
+
 
 # #################################################################################################
 # .gitignore file for git projects containing Stata files

@@ -53,6 +53,10 @@ merge m:1 hostid date 	using "Y:\agrajg\Research\Data\temp\010209_HT_TimeVarying
 keep if _merge==3
 drop _merge
 count
+merge m:1 hostid 	using "Y:\agrajg\Research\Data\temp\010209_H_HostType3Active.dta"
+keep if _merge==3
+drop _merge
+count
 *-------------------------------------------------------------------------------
 *Property characteristics
 merge m:1 propertyid using "Y:\agrajg\Research\Data\temp\010213_L_listingtype.dta"
@@ -67,6 +71,7 @@ drop _merge
 count
 *-------------------------------------------------------------------------------
 save "Y:\agrajg\Research\Data\temp\010302_DataforPriceRegressions.dta", replace
+export delimited using "Y:\agrajg\Research\Data\temp\010302_DataforPriceRegressions.csv", replace
 *-------------------------------------------------------------------------------
 
 

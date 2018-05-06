@@ -127,12 +127,18 @@ keep if date >= td(01aug2014) & date <= td(31mar2017)
 ********************************************************************************
 ********************** REGULATIONS VARIABLES ***********************************
 ********************************************************************************
-gen RegPurgeDum = (date>=td(01oct2015))
-label var RegPurgeDum "Dummy = 1 after purge"
-gen RegDataDiscDum = (date>=td(01dec2015))
-label var RegDataDiscDum "Dummy = 1 after data disclosure"
-gen RegActRegImpDum = (date>=td(01nov2016))
-label var RegActRegImpDum "Dummy = 1 after actual regualtion"
+gen RegCalledIllegal = 		(date>=td(16oct2014))
+label var RegCalledIllegal 	"Dummy = 1 after NYC calls many hosts illegal"
+gen RegDebate = 			(date>=td(21jan2015))
+label var RegDebate 		"Dummy = 1 after NYC considers regulation"
+gen RegRedSupply = 			(date>=td(27jun2015))
+label var RegRedSupply 		"Dummy = 1 after Airbnb was alleged to increase housing scarcity"
+gen RegPurgeDum = 			(date>=td(01oct2015))
+label var RegPurgeDum 		"Dummy = 1 after purge"
+gen RegDataDiscDum = 		(date>=td(01dec2015))
+label var RegDataDiscDum 	"Dummy = 1 after data disclosure"
+gen RegActRegImpDum = 		(date>=td(21oct2016))
+label var RegActRegImpDum 	"Dummy = 1 after actual regualtion"
 ********************************************************************************
 ********************************************************************************
 
